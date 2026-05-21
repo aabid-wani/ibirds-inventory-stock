@@ -1,0 +1,46 @@
+*{
+  font-family: "Montserrat", serif;
+  font-size: 14px;
+}
+
+body {
+  margin: 0;
+  padding: 0;
+  font-size: 16px;
+  background-color: rgb(236, 240, 244);
+}
+
+div.content {
+  margin-left: 200px;
+  padding: 1px 16px;
+  height: 100vh;
+}
+
+input.form-control::placeholder{
+  color: rgb(17, 14, 14);
+  opacity: 1;
+}
+
+
+.fontStyle1{
+  font-family: "system-ui";
+  font-size: 16px;
+}
+
+table>thead>tr>th {
+  background-color: #0a1b2c !important;
+  color: #fff !important;
+  justify-content: flex-start;
+}
+.data-table-header {
+  background-color: #343a40; 
+  color: white;             
+  text-align: center;
+
+}
+
+.data-table-cell {
+  min-width: 40px; 
+  justify-content: flex-start; 
+} 
+
