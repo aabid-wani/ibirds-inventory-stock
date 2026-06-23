@@ -43,17 +43,27 @@ async function getIssueById(id) {
     }
 }
 
-async function addIssue(issue){
-    // console.log('issued',issue)
-        const quantity = issue.quantity === "" ? null : parseInt(issue.quantity, 10);
-        // console.log(quantity);
-    //  const total_buy_quantity = product.total_buy_quantity === "" ? null : parseInt(product.total_buy_quantity, 10);
-    try{
+async function addIssue(issue, createdBy){
+    const quantity = issue.quantity === "" ? null : parseInt(issue.quantity, 10);
 
-        const result = await connection.query(`INSERT INTO public.issues(user_id, product_id,quantity, issue_date,status, description, branch_id,employee_id,created_by) VALUES($1, $2, $3, $4, $5, $6,$7,$8,$9)`,
-         [issue.user_id, issue.product_id, quantity, issue.issue_date,issue.status, issue.description, issue.branch_id,issue.employee_id,created_by]);
-         return result.rows;
-    }catch(err) {
+    try {
+        const result = await connection.query(
+            `INSERT INTO public.issues(user_id, product_id,quantity, issue_date,status, description, branch_id,employee_id,created_by)
+             VALUES($1, $2, $3, $4, $5, $6,$7,$8,$9)`,
+            [
+                issue.user_id,
+                issue.product_id,
+                quantity,
+                issue.issue_date,
+                issue.status,
+                issue.description,
+                issue.branch_id,
+                issue.employee_id,
+                createdBy
+            ]
+        );
+        return result.rows;
+    } catch (err) {
         throw err;
     }
 };

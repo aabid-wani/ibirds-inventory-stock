@@ -1,11 +1,11 @@
-import "react-toastify/dist/ReactToastify.css";
 import React, { useContext, useEffect, useState } from "react";
 import stockManagementApis from "../apis/StockManagementApis";
 import unitData from "../../components/json/measurement.json";
-import { Container, Row, Col, Card, Breadcrumb, Button, Modal, Form} from "react-bootstrap";
-import { Link, NavLink,useNavigate } from "react-router-dom";
+import { Container, Row, Col, Card, Button, Modal, Form } from "react-bootstrap";
+import { Link, NavLink, useNavigate } from "react-router-dom";
 import DataTable from "react-data-table-component";
 import { toast, ToastContainer } from "react-toastify";
+import "react-toastify/dist/ReactToastify.css";
 import { AuthContext } from "../context/AuthProvider";
 import { InputAdornment, TextField } from "@mui/material";
 import Main from "../layout/Main";
@@ -18,7 +18,7 @@ function normalizeProductName(raw) {
 }
 
 export default function Product() {
-  let   navigate = useNavigate();
+  let navigate = useNavigate();
   const [product, setProduct] = useState([]);
   const [filterText, setFilterText] = useState("");
   const [filteredProduct, setFilteredProduct] = useState([]);
@@ -27,24 +27,29 @@ export default function Product() {
   const [isUpdate, setIsUpdate] = useState(false);
   const [category, setCategory] = useState([]);
   const [selectedRows, setSelectedRows] = useState([]);
-  const [loader ,setLoader] = useState(false);
+  const [loader, setLoader] = useState(false);
   const { permissions, loginData } = useContext(AuthContext);
   const [newProduct, setNewProduct] = useState({
-    id: "",                name: "",
-    description: "",       category_id: "",
-    total_buy_quantity: "",total_issue_quantity: "",
-    min_quantity: "",      max_quantity: "",
+    id: "",
+    name: "",
+    description: "",
+    category_id: "",
+    total_buy_quantity: "",
+    total_issue_quantity: "",
+    min_quantity: "",
+    max_quantity: "",
     status: "active",
   });
 
+  const primaryColor = "#5650ce";
 
- const hasEditPermission = permissions?.some(
+  const hasEditPermission = permissions?.some(
     role => ["Admin", "Super Admin"].includes(role.name) || (!["Data Entry"].includes(role.name) && role.edit)
   );
   const hasDeletePermission = permissions?.some(
     role => ["Admin", "Super Admin"].includes(role.name) || (!["Data Entry"].includes(role.name) && role.del)
   );
-  const hasAddPermission = permissions?.some( role => ["Admin", "Super Admin"].includes(role.name));
+  const hasAddPermission = permissions?.some(role => ["Admin", "Super Admin"].includes(role.name));
 
   const handleGetData = async () => {
     try {
@@ -63,7 +68,6 @@ export default function Product() {
 
   useEffect(() => {
     handleGetData();
-
   }, []);
 
   useEffect(() => {
@@ -106,7 +110,6 @@ export default function Product() {
     setShowModal(true);
   };
 
-  
   const deleteHandle = async (id) => {
     try {
       await stockManagementApis.deleteProduct(id);
@@ -117,67 +120,61 @@ export default function Product() {
       toast.error('Error deleting record');
     }
   };
-  
+
   const handleBulkDelete = async () => {
     const isConfirmed = window.confirm(
-      `Are you sure you want to delete ${selectedRows.length} selected product(s)?`
+      `Are you sure you want to change the status of ${selectedRows.length} selected product(s)?`
     );
     if (!isConfirmed) return;
 
     try {
       for (const row of selectedRows) {
-   
         await stockManagementApis.deleteProduct(row.id);
       }
-
-      toast.success(`${selectedRows.length} product(s) deleted successfully`);
+      toast.success(`${selectedRows.length} product(s) status changed successfully`);
       setProduct((prev) =>
         prev.filter((prod) => !selectedRows.some((r) => r.id === prod.id))
       );
       setSelectedRows([]);
+      handleGetData();
     } catch (error) {
       console.error("Bulk delete error:", error);
-      toast.error("An error occurred while deleting selected records.");
+      toast.error("An error occurred while modifying selected records.");
     }
   };
+
   const ActionColumn = ({ row, deleteHandle }) => (
-    <>
+    <div className="d-flex gap-2">
       {hasEditPermission && (
         <Button
-          className="mx-2 btn-sm border-0"
+          variant="outline-primary"
+          className="btn-sm d-flex align-items-center justify-content-center"
           onClick={() => handleEditProduct(row)}
+          style={{ width: "32px", height: "32px", borderColor: "#a3a6dd", color: "#5650ce" }}
         >
           <i className="fa-regular fa-edit" aria-hidden="true"></i>
         </Button>
       )}
       {hasDeletePermission && (
         <Button
-          className={`btn-sm border-0 ${row.status === "active" ? "bg-success" : "bg-danger"}`}
+          variant={row.status === "active" ? "outline-success" : "outline-danger"}
+          className="btn-sm d-flex align-items-center justify-content-center"
           onClick={() => deleteHandle(row.id)}
+          style={{ 
+            width: "32px", 
+            height: "32px", 
+            borderColor: row.status === "active" ? "#badbcc" : "#f5c2c7",
+            color: row.status === "active" ? "#198754" : "#dc3545"
+          }}
         >
           <i
             className={`fa ${row.status === "active" ? "fa-check-circle" : "fa-times-circle"}`}
             aria-hidden="true"
-            style={{ color: "white" }}
           ></i>
         </Button>
-
       )}
-    </>
+    </div>
   );
-
- 
-  useEffect(() => {
-    const filteredData = product.filter((item) =>
-         item.name.toLowerCase().includes(filterText.toLowerCase()) ||
-        (item.category_name && item.category_name.toLowerCase().includes(filterText.toLowerCase())) ||
-        (item.description && item.description.toLowerCase().includes(filterText.toLowerCase())) ||
-        (item.status && item.status.toLowerCase().includes(filterText.toLowerCase()))
-    );
-    setFilteredProduct(filteredData);
-  }, [filterText, product]);
-
-
 
   const handleAddProduct = () => {
     setIsUpdate(false);
@@ -185,70 +182,66 @@ export default function Product() {
   };
 
   const onSubmit = async (e) => {
-      e.preventDefault();
-      setValidated(true);
-      setLoader(true);
-      if (!e.currentTarget.checkValidity()) {
-        e.stopPropagation();
-        setLoader(false);
-        return;
-      }
+    e.preventDefault();
+    setValidated(true);
+    setLoader(true);
+    if (!e.currentTarget.checkValidity()) {
+      e.stopPropagation();
+      setLoader(false);
+      return;
+    }
 
-      const normalizedName = normalizeProductName(newProduct.name);
-      const duplicate = product.some(prod =>
-        normalizeProductName(prod.name) === normalizedName && (!isUpdate || prod.id !== newProduct.id)
-      );
-      if (duplicate) {
-        toast.error("A product with this name already exists.");
-        setLoader(false);
-        return;
-      }
+    const normalizedName = normalizeProductName(newProduct.name);
+    const duplicate = product.some(prod =>
+      normalizeProductName(prod.name) === normalizedName && (!isUpdate || prod.id !== newProduct.id)
+    );
+    if (duplicate) {
+      toast.error("A product with this name already exists.");
+      setLoader(false);
+      return;
+    }
 
-      let payload = {
-        ...newProduct,
-        name: normalizedName,
-        total_buy_quantity: newProduct.total_buy_quantity,
-        total_issue_quantity: newProduct.total_issue_quantity,
-        min_quantity: newProduct.min_quantity,
-        max_quantity: newProduct.max_quantity,
-      };
+    let payload = {
+      ...newProduct,
+      name: normalizedName,
+      total_buy_quantity: newProduct.total_buy_quantity,
+      total_issue_quantity: newProduct.total_issue_quantity,
+      min_quantity: newProduct.min_quantity,
+      max_quantity: newProduct.max_quantity,
+    };
 
-      try {
-        let resp;
-        if (isUpdate) {
-          // Pass updated_by when updating
-          payload = { ...payload, updated_by: loginData?.id };
-          resp = await stockManagementApis.updateProduct(newProduct.id, payload);
-          if (resp.success) {
-            toast.success(resp.message || "Product updated successfully");
-            handleModalClose();
-            handleGetData();
-          } else {
-            toast.error(resp.errors || "Error updating product");
-          }
+    try {
+      let resp;
+      if (isUpdate) {
+        payload = { ...payload, updated_by: loginData?.id };
+        resp = await stockManagementApis.updateProduct(newProduct.id, payload);
+        if (resp.success) {
+          toast.success(resp.message || "Product updated successfully");
+          handleModalClose();
+          handleGetData();
         } else {
-          // Pass created_by when creating
-          payload = { ...payload, created_by: loginData?.id };
-          resp = await stockManagementApis.addProduct(payload);
-          if (resp?.success) {
-            toast.success(resp.message || "Product saved successfully");
-            handleModalClose();
-            handleGetData();
-            navigate(`/productDetailPage/${resp.data[0]?.id}`);
-          } else {
-            toast.error(resp.message || "Operation failed");
-          }
+          toast.error(resp.errors || "Error updating product");
         }
-      } catch (err) {
-        const msg = err?.response?.data?.message || err.message || "Error saving product";
-        toast.error(msg);
-      } finally {
-        setLoader(false);
+      } else {
+        payload = { ...payload, created_by: loginData?.id };
+        resp = await stockManagementApis.addProduct(payload);
+        if (resp?.success) {
+          toast.success(resp.message || "Product saved successfully");
+          handleModalClose();
+          handleGetData();
+          navigate(`/productDetailPage/${resp.data[0]?.id}`);
+        } else {
+          toast.error(resp.message || "Operation failed");
+        }
       }
+    } catch (err) {
+      const msg = err?.response?.data?.message || err.message || "Error saving product";
+      toast.error(msg);
+    } finally {
+      setLoader(false);
+    }
   };
 
-
-  // Flatten all measurement units from JSON and get unique units
   const getUniqueUnits = () => {
     const allUnits = Object.values(unitData).flat();
     const uniqueUnits = [...new Set(allUnits)];
@@ -256,132 +249,138 @@ export default function Product() {
   };
 
   const uniqueUnits = getUniqueUnits();
+
   const columns = [
     {
-      name: <b>S.No.</b>,
+      name: "S.No.",
       selector: (row, index) => index + 1,
       sortable: true,
-      width: "70px",
-      style: { borderRight: "2px solid #dee2e6", fontWeight: "bold" },
+      width: "80px",
     },
-   {
-    name: <b>Name</b>,
-    selector: row => row.name,
-    sortable: true,
-    cell: row => (
-      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-        <OverlayTrigger
-          placement="right"
-          delay={{ show: 200, hide: 100 }}
-          style={{backgroundColor:'blue'}}
-          overlay={
-            <Tooltip id={`tooltip-buyqty-${row.id}`} style={{backgroundColor:'gray'}}>
-              {/* Total Qty: <b>{row.total_buy_quantity}</b><br></br> */}
-              Remaining: <b>{(row.total_buy_quantity - row.total_issue_quantity)}</b>
-            </Tooltip>
-          }
-        >
-            <NavLink
-          style={{ textDecoration: 'none', color: '#007bff' }}
-          to={`/productDetailPage/${row.id}`}
-        >
-            <span>
-          {row.name}
-          </span>
-        </NavLink>
-        
-        </OverlayTrigger>
-      </div>
-    ),
-  },
     {
-      name: <b>Category</b>,
+      name: "Name",
+      selector: row => row.name,
+      sortable: true,
+      cell: row => (
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <OverlayTrigger
+            placement="right"
+            delay={{ show: 200, hide: 100 }}
+            overlay={
+              <Tooltip id={`tooltip-buyqty-${row.id}`} style={{ backgroundColor: '#212529' }}>
+                Remaining: <b>{(row.total_buy_quantity - row.total_issue_quantity)}</b>
+              </Tooltip>
+            }
+          >
+            <NavLink
+              style={{ textDecoration: 'none', color: primaryColor, fontWeight: '500' }}
+              to={`/productDetailPage/${row.id}`}
+            >
+              <span>{row.name}</span>
+            </NavLink>
+          </OverlayTrigger>
+        </div>
+      ),
+    },
+    {
+      name: "Category",
       selector: (row) => row.category_name || "",
       sortable: true,
     },
     {
-      name: <b>Unit</b>,
+      name: "Unit",
       selector: (row) => row.measurement_unit || "",
       sortable: true,
     },
     {
-      name: <b>Total Qty</b>,
+      name: "Total Qty",
       selector: (row) => row.total_buy_quantity || 0,
       sortable: true,
     },
     {
-      name: <b>Issued Qty</b>,
+      name: "Issued Qty",
       selector: (row) => row.total_issue_quantity || 0,
       sortable: true,
     },
-
     {
-      name: <b>Remaining Qty</b>,
+      name: "Remaining Qty",
       selector: (row) => row.total_buy_quantity - row.total_issue_quantity,
       sortable: true,
     },
-
     {
-      name: <b>Status</b>,
+      name: "Status",
       selector: (row) => (row.status === "active" ? "active" : "inactive"),
       sortable: true,
     },
     {
-      name: <b>Action</b>,
+      name: "Actions",
       cell: (row) => <ActionColumn row={row} deleteHandle={deleteHandle} />,
       ignoreRowClick: true,
       allowOverflow: true,
       button: true,
+      width: "120px"
     },
   ];
 
   const customStyles = {
-    table:      { style: { textAlign: "left",},},
-    headCells:  { style:{ 
-          background: "radial-gradient(circle at top left, #4f5a66ff, #34495e)",
-          color:" #ecf0f1ff",
-      }},
-    headRow:    { style: { minHeight: "30px", }, },
-    rows:       { style: { minHeight: "34px",}, },
+    table: {
+      style: { textAlign: "left" },
+    },
+    headRow: {
+      style: {
+        backgroundColor: "#212529",
+        color: "#ffffff",
+        minHeight: "45px",
+        fontWeight: "600",
+        fontSize: "14px",
+      },
+    },
+    rows: {
+      style: {
+        minHeight: "50px",
+        fontSize: "14px",
+        color: "#495057",
+      },
+    },
   };
 
   return (
     <>
       {loader &&
-      <div class="loading-state">
-        <div class="loading"></div>
-      </div>
+        <div className="loading-state">
+          <div className="loading"></div>
+        </div>
       }
-    <Main>
-      <div className="my-2" style={{ position: "relative", left: "5px" }}>
-        <Breadcrumb>
-          <Breadcrumb.Item linkAs={Link} linkProps={{ to: "/Home" }}>
-            Home{" "}
-          </Breadcrumb.Item>
-          <Breadcrumb.Item active style={{ fontWeight: "bold" }}>
-            {"Products List"}
-          </Breadcrumb.Item>
-        </Breadcrumb>
-      </div>
-      <Card
-        style={{ boxShadow:  "0 4px 20px rgba(0, 0, 0, 0.15), 0 0 20px rgba(0, 0, 0, 0.1)",}}>
-        <Container fluid className="p-3"   >
-          <p style={{ fontSize: "16px", fontWeight: "bold" }}>Product List </p>
-          <hr />
-          <Row>
-            <Col>
-              <div className="d-flex justify-content-between align-items-center mb-3" >
+      <Main>
+        <div className="my-3 px-3" style={{ fontSize: "14px" }}>
+          <Link to="/Home" className="text-decoration-none" style={{ color: primaryColor }}>
+            Home
+          </Link>
+          <span className="text-muted mx-2">/</span>
+          <span className="text-muted">Products</span>
+        </div>
+
+        <Container fluid className="px-3">
+          <Card className="border-0 shadow-sm" style={{ borderRadius: "8px" }}>
+            {/* Header Section */}
+            <div className="d-flex justify-content-between align-items-center p-3 border-bottom flex-wrap gap-3">
+              <div>
+                <h5 className="mb-0 fw-normal">Product List</h5>
+                <small className="text-muted">{filteredProduct.length} records</small>
+              </div>
+
+              <div className="d-flex align-items-center gap-3 flex-wrap">
                 <TextField
                   id="search"
-                  label="Search"
-                  variant="outlined"
-                  type="text"
+                  placeholder="Search..."
                   value={filterText}
                   onChange={(e) => setFilterText(e.target.value)}
+                  size="small"
+                  sx={{ minWidth: "200px", backgroundColor: "#fcfcfc" }}
                   InputProps={{
                     startAdornment: (
                       <InputAdornment position="start">
-                        <i className="fa fa-search"></i>
+                        <i className="fa fa-search text-muted"></i>
                       </InputAdornment>
                     ),
                   }}
@@ -389,42 +388,43 @@ export default function Product() {
 
                 {hasDeletePermission && selectedRows.length > 0 && (
                   <Button
-                    className="btn-sm"
-                    style={{left:'40px'}}
-                    variant="danger"
+                    variant="outline-danger"
+                    className="px-3"
                     onClick={handleBulkDelete}
                   >
-                    <i aria-hidden="true"></i>Change Status Inactive
+                    <i className="fa fa-ban me-1" aria-hidden="true"></i> Change Status
                   </Button>
                 )}
 
-                {hasAddPermission ? (
-                  <div className="d-flex">
-                    <Button className="btn-sm" onClick={handleAddProduct}>
-                      <i className="fa fa-plus" aria-hidden="true"></i>&nbsp;Add
-                      Product
-                    </Button>
-                  </div>
-                ) : null}
+                {hasAddPermission && (
+                  <Button
+                    className="px-3 border-0"
+                    onClick={handleAddProduct}
+                    style={{ backgroundColor: primaryColor }}
+                  >
+                    <i className="fa fa-plus me-1" aria-hidden="true"></i> Add Product
+                  </Button>
+                )}
               </div>
-            </Col>
-          </Row>
-          <Row>
-            <Col>
-             <DataTable
+            </div>
+
+            {/* Data Table Section */}
+            <div className="p-0">
+              <DataTable
                 columns={columns}
                 data={filteredProduct}
                 pagination
                 highlightOnHover
-                striped
                 customStyles={customStyles}
                 selectableRows
                 onSelectedRowsChange={({ selectedRows }) => setSelectedRows(selectedRows)}
+                noDataComponent={<div className="p-4 text-muted">No Records Found</div>}
               />
-            </Col>
-          </Row>
+            </div>
+          </Card>
 
-          <Modal  show={showModal} onHide={handleModalClose} backdrop="static" size="lg"  >
+          {/* Add/Edit Modal */}
+          <Modal show={showModal} onHide={handleModalClose} backdrop="static" size="lg">
             <Form noValidate validated={validated}>
               <Modal.Header closeButton>
                 <Modal.Title>
@@ -506,10 +506,10 @@ export default function Product() {
                         <Form.Label>Units</Form.Label>
                         <Form.Select
                           name="measurement_units"
-                          value={newProduct.measurement_units || ""} 
+                          value={newProduct.measurement_units || ""}
                           onChange={handleInputChange}
                         >
-                       <option value="" disabled>Select unit</option>
+                          <option value="" disabled>Select unit</option>
                           {uniqueUnits.map((unit, index) => (
                             <option key={index} value={unit}>
                               {unit}
@@ -581,16 +581,16 @@ export default function Product() {
                 <Button variant="secondary" onClick={handleModalClose}>
                   Close
                 </Button>
-                <Button variant="primary" type="submit" onClick={onSubmit}>
+                <Button type="submit" onClick={onSubmit} style={{ backgroundColor: primaryColor, border: "none" }}>
                   {isUpdate ? "Update" : "Add"}
                 </Button>
               </Modal.Footer>
             </Form>
           </Modal>
+
           <ToastContainer />
         </Container>
-      </Card>
-    </Main>
+      </Main>
     </>
   );
 }

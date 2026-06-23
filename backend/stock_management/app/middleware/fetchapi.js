@@ -10,18 +10,19 @@ const fetchApi = async (req, res, next) => {
     }
 
     const token = authHeader.split(" ")[1];
+    console.log("token=>",token)
     if (!token) {
       return res.status(401).json({ errors: "Authorization token missing" });
     }
 
     // Verify token
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
-    // console.log("Decoded Token:", decoded.user.email);
+    console.log("Decoded Token:", decoded.user.email);
     
 
     // Here we assume you stored only userId/email in token payload
     const user = await Auth.getUserLoginByEmail(decoded.user.email); 
-    // console.log("Fetched User:", user);
+    console.log("Fetched User:", user);
 
     if (!user) {
       return res.status(403).json({ errors: "Invalid User" });

@@ -1,20 +1,25 @@
-import Sidebar from "./Sidebar"
+import React from "react";
+import Sidebar from "./Sidebar";
 import Header from "./Header";
-const Main = ({ children }) => {
-  // console.log('children-->>', children?.props?.children);
+
+export default function Main({ children }) {
   return (
-    <div className="wrapper">
+    <div style={{ display: "flex", minHeight: "100vh", background: "#f6f7fb" }}>
+      
+      {/* Sidebar — sticky on the left */}
       <Sidebar />
-      <div id="content">
+
+      {/* Right column: header on top, content below */}
+      <div style={{ flex: 1, display: "flex", flexDirection: "column", minWidth: 0, overflow: "hidden" }}>
+        
+        {/* Header — sticky at top of right column */}
         <Header />
-        <div className="px-4">
-        {/* {children && children} */}
-        {children}
-        </div>
+
+        {/* Page content */}
+        <main style={{ flex: 1, overflowY: "auto" }}>
+          {children}
+        </main>
       </div>
     </div>
   );
-};
-
-export default Main;
-
+}

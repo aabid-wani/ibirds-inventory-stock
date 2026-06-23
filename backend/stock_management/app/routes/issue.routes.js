@@ -36,7 +36,7 @@ module.exports = function(app) {
     router.post('/create',  fetchApi ,async (req, res)=> {
         try {
             const issue = req.body;
-            const result = await Issue.addIssue(issue);
+            const result = await Issue.addIssue(issue, req.user?.id || req.user?.email);
             if(result){
                 res.status(201).json({result, success : true});
             }else{

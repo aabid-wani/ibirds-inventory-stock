@@ -2,27 +2,43 @@ import { API_BASE_URL } from '../CONSTANT/CONSTANT';
 
 // Generic fetch with Bearer token and error handling
 const fetchWithToken = async (url, options = {}) => {
-  // console.log("Fetching URL:", url, 'options ' ,options);
-  
+  console.log("Fetching URL:", url, 'options ' ,options);
+
   const token = sessionStorage.getItem('token');
-  // console.log("Using Token:", token);
+  console.log("Using Token:", token);
 
   const headers = {
     'Content-Type': 'application/json',
     ...(options.headers || {}),
     ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
   };
+
   try {
-    // console.log("Headers:", headers, 'options ' ,options);
+    console.log("Headers:", headers, 'options ' ,options);
     const response = await fetch(url, { ...options, headers });
-    // let data = await response.json();
-    // console.log("Response Data:", data);
-    if (!response.ok) throw new Error(`Error: ${response.status}`);
-    // For DELETE, some APIs may not return JSON
-    if (options.method === 'DELETE') {
-      try { return await response.json(); } catch { return response.status; }
+
+    // Parse body ONCE (some endpoints may return empty body)
+    let data = null;
+    const contentType = response.headers.get('content-type') || '';
+    const isJson = contentType.includes('application/json');
+
+    if (isJson) {
+      data = await response.json();
+      console.log("Response Data:", data);
+    } else {
+      // e.g., empty body or plain text
+      const text = await response.text().catch(() => '');
+      data = text ? text : null;
+      console.log("Response Data (non-json):", data);
     }
-    return await response.json();
+
+    if (!response.ok) {
+      // include server message when available
+      const message = (data && (data.errors || data.message)) ? (data.errors || data.message) : `Error: ${response.status}`;
+      throw new Error(message);
+    }
+
+    return data;
   } catch (error) {
     console.error('API error:', error);
     throw error;

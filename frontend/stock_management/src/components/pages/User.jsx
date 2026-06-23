@@ -4,7 +4,6 @@ import {
   Row,
   Col,
   Card,
-  Breadcrumb,
   Button,
   Modal,
   Form,
@@ -19,7 +18,6 @@ import "../../App.css";
 import { AuthContext } from "../context/AuthProvider";
 import { ToastContainer, toast } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
-import { create } from "@mui/material/styles/createTransitions";
 
 export default function User() {
   const [showAlert, setShowAlert] = useState(false);
@@ -36,7 +34,9 @@ export default function User() {
   const [validated, setValidated] = useState(false);
   const [isValid, setIsValid] = useState(true);
   const navigate = useNavigate();
-  const { permissions, loginData} = useContext(AuthContext);
+  const { permissions, loginData } = useContext(AuthContext);
+
+  const primaryColor = "#5650ce";
 
   const [currentUser, setCurrentUser] = useState({
     name: "",
@@ -49,11 +49,12 @@ export default function User() {
     password: "",
     created_by: loginData?.id || null,
   });
+
   const hasAddPermission = permissions?.some(
-        (role) =>
-          role.name === "Admin" ||
-          role.name === "Super Admin" ||
-          (role.name !== "Data Entry" && role.add)
+    (role) =>
+      role.name === "Admin" ||
+      role.name === "Super Admin" ||
+      (role.name !== "Data Entry" && role.add)
   );
 
   const onSubmit = async (event) => {
@@ -98,7 +99,6 @@ export default function User() {
     setCurrentUser({ ...currentUser, password: newPassword });
   };
 
-
   useEffect(() => {
     const fetchRoles = async () => {
       try {
@@ -113,7 +113,6 @@ export default function User() {
     fetchRoles();
   }, []);
 
- 
   const ActionColumn = ({ row, deleteHandle }) => {
     const hasEditPermission = permissions?.some(
       (role) =>
@@ -129,26 +128,28 @@ export default function User() {
     );
 
     return (
-      <>
+      <div className="d-flex gap-2">
         {hasEditPermission && (
           <Button
-            className="mx-2 btn-sm border-0"
+            variant="outline-primary"
+            className="btn-sm d-flex align-items-center justify-content-center"
             onClick={() => handleUpdateClick(row)}
+            style={{ width: "32px", height: "32px", borderColor: "#a3a6dd", color: primaryColor }}
           >
             <i className="fa-regular fa-edit" aria-hidden="true"></i>
           </Button>
         )}
         {hasDeletePermission && (
-          <Button className="bg-danger btn-sm border-0">
-            <i
-              className="fa fa-trash"
-              aria-hidden="true"
-              onClick={() => deleteHandle(row.id)}
-              style={{ color: "white" }}
-            ></i>
+          <Button
+            variant="outline-danger"
+            className="btn-sm d-flex align-items-center justify-content-center"
+            onClick={() => deleteHandle(row.id)}
+            style={{ width: "32px", height: "32px", borderColor: "#f5c2c7", color: "#dc3545" }}
+          >
+            <i className="fa fa-trash" aria-hidden="true"></i>
           </Button>
         )}
-      </>
+      </div>
     );
   };
 
@@ -164,8 +165,9 @@ export default function User() {
       status: "",
       branch_id: "",
       password: "",
-      created_by: loginData?.id || null
+      created_by: loginData?.id || null,
     });
+    setValidated(false);
   };
 
   const handleModalShow = () => {
@@ -176,15 +178,15 @@ export default function User() {
     const { name, value } = e.target;
     const emailValue = e.target.value;
     setCurrentUser({ ...currentUser, [name]: value });
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    setIsValid(emailRegex.test(emailValue));
+    if (name === "email") {
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      setIsValid(emailRegex.test(emailValue));
+    }
   };
 
   const handleSubmit = async () => {
     try {
       if (isUpdate) {
-
-        
         currentUser.updated_by = loginData?.id || null;
         const result = await stockManagementApis.updateUser(
           currentUser.id,
@@ -196,18 +198,15 @@ export default function User() {
           toast.error("Failed to update user");
         }
       } else {
-        console.log("currentUser", currentUser);
-        
         const result = await stockManagementApis.createUser(currentUser);
-     
         if (result.success) {
           toast.success("User added successfully");
         } else {
           toast.error("Failed to add user");
         }
-        setTimeout(()=>{
-          navigate(`/userDetailPage/${result.result?.id}`);
-        },2000)
+        setTimeout(() => {
+          if (result.result?.id) navigate(`/userDetailPage/${result.result.id}`);
+        }, 2000);
       }
       handleModalClose();
       handleGetData();
@@ -225,8 +224,6 @@ export default function User() {
   const handleGetData = async () => {
     try {
       const result = await stockManagementApis.getUsers();
-      // console.log("Fetched Users:", result);
-      
       setUser(result);
       setFilteredCategories(result);
     } catch (error) {
@@ -244,12 +241,11 @@ export default function User() {
     if (isConfirmed) {
       try {
         await stockManagementApis.deleteUserById(id);
-        toast.success('successfully to delete record')
-   
+        toast.success('Successfully deleted record');
         setUser((prevOrders) => prevOrders.filter((ord) => ord.id !== id));
       } catch (error) {
         console.error('Error deleting record:', error);
-        toast.error('Error to deleting record');
+        toast.error('Error deleting record');
         setShowAlert(true);
       }
     } else {
@@ -260,184 +256,151 @@ export default function User() {
   useEffect(() => {
     const filteredData = user.filter(
       (item) =>
-        item.id.toLowerCase().includes(filterText.toLowerCase()) ||
-        item.name.toLowerCase().includes(filterText.toLowerCase()) ||
-        item.contact.toLowerCase().includes(filterText.toLowerCase()) ||
-        item.email.toLowerCase().includes(filterText.toLowerCase()) ||
-        item.role_name.toLowerCase().includes(filterText.toLowerCase()) ||
-        item.user_name.toLowerCase().includes(filterText.toLowerCase()) ||
-        item.password.toLowerCase().includes(filterText.toLowerCase()) ||
-        item.status.toLowerCase().includes(filterText.toLowerCase()) ||
-        item.branch_name.toLowerCase().includes(filterText.toLowerCase())
+        (item.id || "").toLowerCase().includes(filterText.toLowerCase()) ||
+        (item.name || "").toLowerCase().includes(filterText.toLowerCase()) ||
+        (item.contact || "").toLowerCase().includes(filterText.toLowerCase()) ||
+        (item.email || "").toLowerCase().includes(filterText.toLowerCase()) ||
+        (item.role_name || "").toLowerCase().includes(filterText.toLowerCase()) ||
+        (item.user_name || "").toLowerCase().includes(filterText.toLowerCase()) ||
+        (item.status || "").toLowerCase().includes(filterText.toLowerCase()) ||
+        (item.branch_name || "").toLowerCase().includes(filterText.toLowerCase())
     );
     setFilteredCategories(filteredData);
   }, [filterText, user]);
 
   const columns = [
     {
-      name: <b>S.No.</b>,
+      name: "S.No.",
       selector: (row, index) => index + 1,
       sortable: true,
-      width: "70px",
-      style: {
-        borderRight: "2px solid #dee2e6",
-        fontWeight: "bold",
-      },
+      width: "80px",
     },
     {
-      name: <b>Name</b>,
+      name: "Name",
       selector: (row) => row.name,
       sortable: true,
       cell: (row) => (
         <NavLink
-          style={{ textDecoration: "none", color: "#007bff" }}
+          style={{ textDecoration: "none", color: primaryColor, fontWeight: "500" }}
           to={`/userDetailPage/${row.id}`}
         >
           {row.name}
         </NavLink>
       ),
-      className: "data-table-cell",
     },
     {
-      name: <b>Email</b>,
+      name: "Email",
       selector: (row) => row.email,
       sortable: true,
-      className: "data-table-cell",
     },
     {
-      name: <b>Roles</b>,
+      name: "Roles",
       selector: (row) => row.role_name,
       sortable: true,
-      className: "data-table-cell",
     },
     {
-      name: <b>User Name</b>,
+      name: "User Name",
       selector: (row) => row.user_name,
       sortable: true,
-      className: "data-table-cell",
     },
     {
-      name: <b>Status</b>,
+      name: "Status",
       selector: (row) => (row.status === "active" ? "Active" : "Inactive"),
-      className: "data-table-cell",
     },
     {
-      name: <b>Action</b>,
+      name: "Actions",
       cell: (row) => (
         <ActionColumn row={row} deleteHandle={deleteHandleRecord} />
       ),
       ignoreRowClick: true,
       allowOverflow: true,
       button: true,
-      className: "data-table-cell",
+      width: "120px",
     },
   ];
 
   const customStyles = {
     table: {
-      style: {
-        textAlign: "left",
-      },
-    },
-    headCells: {
-      style: {
-        background: "radial-gradient(circle at top left, #4f5a66ff, #34495e)",
-        color:" #ecf0f1ff",
-      },
+      style: { textAlign: "left" },
     },
     headRow: {
       style: {
-        minHeight: "30px",
+        backgroundColor: "#212529",
+        color: "#ffffff",
+        minHeight: "45px",
+        fontWeight: "600",
+        fontSize: "14px",
       },
     },
     rows: {
       style: {
-        minHeight: "34px",
+        minHeight: "50px",
+        fontSize: "14px",
+        color: "#495057",
       },
     },
   };
 
   return (
     <Main>
-      
-      <Container fluid>
-        <div className="my-2 mt-4" style={{position: "relative", left: "5px" }}>
-          <Breadcrumb>
-            <Breadcrumb.Item linkAs={Link} linkProps={{ to: "/Home" }}>
-              Home
-            </Breadcrumb.Item> 
-            <Breadcrumb.Item active style={{ fontWeight: "bold" }}>
-              { "Users List" }
-            </Breadcrumb.Item>
-          </Breadcrumb>
-        </div>
-        <Row>
-          <Col lg={12} sm={12} md={12} className="content-wrapper">
-            <Card
-              style={{ boxShadow: "0 4px 20px rgba(0, 0, 0, 0.15), 0 0 20px rgba(0, 0, 0, 0.1)"}}>
-              <Card.Header style={{ backgroundColor: "white", height: "40px" }}>
-                <p style={{ fontSize: "16px", fontWeight: "bold" }}>User List</p>
-              </Card.Header>
-              <Card.Body>
-                <Row>
-                  <Col>
-                    <div className="d-flex justify-content-between align-items-center mb-3">
-                      <TextField
-                        id="search"
-                        type="text"
-                        placeholder="Search"
-                        aria-label="Search Input"
-                        value={filterText}
-                        onChange={(e) => setFilterText(e.target.value)}
-                        InputProps={{
-                          startAdornment: (
-                            <InputAdornment position="start">
-                              <i
-                                className="fa fa-search"
-                                aria-hidden="true"
-                              ></i>
-                            </InputAdornment>
-                          ),
-                        }}
-                        size="small"
-                      />
-                      {hasAddPermission ? (
-                        <div className="d-flex">
-                          <Button
-                            variant="primary"
-                            onClick={handleModalShow}
-                            className="btn-sm"
-                          >
-                            <i className="fa fa-plus" aria-hidden="true"></i>
-                            &nbsp;Add User
-                          </Button>
-                        </div>
-                      ) : (
-                        <div></div>
-                      )}
-                      {/* <div className='d-flex'>
-                        <Button variant='primary' onClick={handleModalShow} className='btn-sm'>
-                          <i className='fa fa-plus' aria-hidden='true'></i>&nbsp;Add User
-                        </Button>
-                      </div> */}
-                    </div>
-                  </Col>
-                </Row>
-                <Row>
-                  <Col>
-                    <DataTable
-                      columns={columns}
-                      data={filteredCategories}
-                      pagination
-                      customStyles={customStyles}
-                      noDataComponent="No Records Found"
-                    />
-                  </Col>
-                </Row>
-              </Card.Body>
-            </Card>
-          </Col>
-        </Row>
+      <div className="my-3 px-3" style={{ fontSize: "14px" }}>
+        <Link to="/Home" className="text-decoration-none" style={{ color: primaryColor }}>Home</Link>
+        <span className="text-muted mx-2">/</span>
+        <span className="text-muted">Users</span>
+      </div>
+
+      <Container fluid className="px-3">
+        <Card className="border-0 shadow-sm" style={{ borderRadius: '8px' }}>
+          {/* Header Section */}
+          <div className="d-flex justify-content-between align-items-center p-3 border-bottom flex-wrap gap-3">
+            <div>
+              <h5 className="mb-0 fw-normal">User List</h5>
+              <small className="text-muted">{filteredCategories.length} records</small>
+            </div>
+
+            <div className="d-flex align-items-center gap-3 flex-wrap">
+              <TextField
+                id="search"
+                placeholder="Search..."
+                value={filterText}
+                onChange={(e) => setFilterText(e.target.value)}
+                size="small"
+                sx={{ minWidth: "200px", backgroundColor: "#fcfcfc" }}
+                InputProps={{
+                  startAdornment: (
+                    <InputAdornment position="start">
+                      <i className="fa fa-search text-muted"></i>
+                    </InputAdornment>
+                  ),
+                }}
+              />
+
+              {hasAddPermission && (
+                <Button
+                  className="px-3 border-0 d-flex align-items-center gap-2"
+                  onClick={handleModalShow}
+                  style={{ backgroundColor: primaryColor }}
+                >
+                  <i className="fa fa-plus" aria-hidden="true"></i> Add User
+                </Button>
+              )}
+            </div>
+          </div>
+
+          {/* Data Table Section */}
+          <div className="p-0">
+            <DataTable
+              columns={columns}
+              data={filteredCategories}
+              pagination
+              highlightOnHover
+              customStyles={customStyles}
+              noDataComponent={<div className="p-4 text-muted">No Records Found</div>}
+            />
+          </div>
+        </Card>
+
+        {/* Add/Edit Modal */}
         <Modal
           show={showModal}
           onHide={handleModalClose}
@@ -447,12 +410,11 @@ export default function User() {
           <Form noValidate validated={validated} onSubmit={onSubmit}>
             <Modal.Header closeButton>
               <Modal.Title>
-                {" "}
                 {currentUser.id ? "Update User" : "Add User"}
               </Modal.Title>
             </Modal.Header>
-            <Modal.Body>
-              <div className="container">
+            <Modal.Body className="p-4">
+              <Container>
                 <Row>
                   <Col md={6}>
                     <Form.Group className="mb-3">
@@ -481,7 +443,6 @@ export default function User() {
                         onChange={handleInputChange}
                         required
                       />
-                      {/* {!isValid && <p>Please enter a valid email address.</p>} */}
                       <Form.Control.Feedback type="invalid">
                         Please enter a valid email.
                       </Form.Control.Feedback>
@@ -609,10 +570,7 @@ export default function User() {
                           onClick={handleToggleVisibility}
                         >
                           {isPasswordVisible ? (
-                            <i
-                              className="fa fa-eye-slash"
-                              aria-hidden="true"
-                            ></i>
+                            <i className="fa fa-eye-slash" aria-hidden="true"></i>
                           ) : (
                             <i className="fa fa-eye" aria-hidden="true"></i>
                           )}
@@ -621,18 +579,17 @@ export default function User() {
                       <Form.Control.Feedback type="invalid">
                         Please enter a password.
                       </Form.Control.Feedback>
-                      {/* <Button className='mt-2' onClick={generatePassword}>Generate Password</Button> */}
                     </Form.Group>
                   </Col>
                 </Row>
-              </div>
+              </Container>
             </Modal.Body>
-            <Modal.Footer>
+            <Modal.Footer className="bg-light">
               <Button variant="secondary" onClick={handleModalClose}>
                 Close
               </Button>
-              <Button variant="primary" type="submit">
-                {isUpdate ? "Update" : "Add"}
+              <Button type="submit" style={{ backgroundColor: primaryColor, border: 'none' }}>
+                {isUpdate ? "Update" : "Add User"}
               </Button>
             </Modal.Footer>
           </Form>

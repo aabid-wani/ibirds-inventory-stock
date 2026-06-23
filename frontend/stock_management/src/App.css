@@ -44,3 +44,26 @@ table>thead>tr>th {
   justify-content: flex-start; 
 } 
 
+/* Force the header to display */
+.react-datepicker__header {
+  display: block !important; 
+  padding: 0 !important; /* Reset padding so our custom header fits perfectly */
+}
+
+/* Fix width so months don't wrap */
+.react-datepicker__month-container {
+  width: 320px !important; 
+}
+
+.react-datepicker__month-wrapper {
+  display: flex !important;
+  justify-content: space-evenly !important;
+  width: 100%;
+}
+
+.react-datepicker__month .react-datepicker__month-text {
+  display: inline-block;
+  width: 5.5rem !important; 
+  margin: 4px !important;
+  padding: 5px 0 !important;
+}

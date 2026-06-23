@@ -19,7 +19,7 @@ async function getEmployeeById(id) {
 }
 
 async function addEmployee(employee) {
-    //  console.log('Employee Data ',employee);
+     console.log('Employee Data ',employee);
     try {
         const query = `
             INSERT INTO public.employees (name, department, status, created_by)

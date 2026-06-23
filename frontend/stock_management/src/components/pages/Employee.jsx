@@ -5,7 +5,6 @@ import {
   Row,
   Col,
   Card,
-  Breadcrumb,
   Button,
   Modal,
   Form,
@@ -55,12 +54,10 @@ export default function Employee() {
     e.preventDefault();
     try {
       if (isUpdate && selectedEmployee) {
-        // Pass updated_by when updating
         const payload = { ...newEmployee, updated_by: loginData?.id };
         await stockManagementApis.updateEmployee(selectedEmployee.id, payload);
         toast.success("Employee updated successfully");
       } else {
-        // Pass created_by when creating
         const payload = { ...newEmployee, created_by: loginData?.id };
         await stockManagementApis.addEmployee(payload);
         toast.success("Employee created successfully");
@@ -103,7 +100,7 @@ export default function Employee() {
   }, []);
 
   useEffect(() => {
-    const filtered = employees.filter((emp) => 
+    const filtered = employees.filter((emp) =>
       (emp.name || "").toLowerCase().includes(filterText.toLowerCase()) ||
       (emp.department || "").toLowerCase().includes(filterText.toLowerCase()) ||
       (emp.status || "").toLowerCase().includes(filterText.toLowerCase())
@@ -126,132 +123,158 @@ export default function Employee() {
     }
   };
 
-  
-    // ...existing code...
-    const hasEditPermission = permissions?.some(
-      (role) =>
-        role.name === "Admin" ||
-        role.name === "Super Admin" ||
-        (role.name !== "Data Entry" && role.edit)
-    );
-    const hasDeletePermission = permissions?.some(
-      (role) =>
-        role.name === "Admin" ||
-        role.name === "Super Admin" ||
-        (role.name !== "Data Entry" && role.del)
-    );
-    const hasAddPermission = permissions?.some(
-      (role) => role.name === 'Admin' ||
-        role.name === 'Super Admin' ||
-        (role.name!== 'Data Entry' && role.add)
-    );
-
-
-  // Action Buttons
-  const ActionColumn = ({ row }) => (
-    <>
-     { hasEditPermission &&
-      <Button className="mx-2 btn-sm border-0" onClick={() => handleEditClick(row)}>
-        <i className="fa-regular fa-edit" aria-hidden="true"></i>
-      </Button>
-     }
-     { hasDeletePermission && 
-      <Button className="bg-danger btn-sm border-0" onClick={() => deleteHandle(row.id)}>
-        <i className="fa fa-trash" style={{ color: "white" }} aria-hidden="true"></i>
-      </Button>
-     }
-    </>
+  const hasEditPermission = permissions?.some(
+    (role) =>
+      role.name === "Admin" ||
+      role.name === "Super Admin" ||
+      (role.name !== "Data Entry" && role.edit)
+  );
+  const hasDeletePermission = permissions?.some(
+    (role) =>
+      role.name === "Admin" ||
+      role.name === "Super Admin" ||
+      (role.name !== "Data Entry" && role.del)
+  );
+  const hasAddPermission = permissions?.some(
+    (role) =>
+      role.name === "Admin" ||
+      role.name === "Super Admin" ||
+      (role.name !== "Data Entry" && role.add)
   );
 
-  // DataTable Columns
+  // Action Buttons updated to match UI
+  const ActionColumn = ({ row }) => (
+    <div className="d-flex gap-2">
+      {hasEditPermission && (
+        <Button 
+          variant="outline-primary" 
+          className="btn-sm d-flex align-items-center justify-content-center" 
+          onClick={() => handleEditClick(row)}
+          style={{ width: '32px', height: '32px', borderColor: '#a3a6dd', color: '#5650ce' }}
+        >
+          <i className="fa-regular fa-edit" aria-hidden="true"></i>
+        </Button>
+      )}
+      {hasDeletePermission && (
+        <Button 
+          variant="outline-danger" 
+          className="btn-sm d-flex align-items-center justify-content-center" 
+          onClick={() => deleteHandle(row.id)}
+          style={{ width: '32px', height: '32px', borderColor: '#f5c2c7', color: '#dc3545' }}
+        >
+          <i className="fa fa-trash" aria-hidden="true"></i>
+        </Button>
+      )}
+    </div>
+  );
+
+  // DataTable Columns cleaned up
   const columns = [
     {
-      name: <b>S.No.</b>,
+      name: "S.No.",
       selector: (row, index) => index + 1,
-      width: "70px",
-      style: { borderRight: "2px solid #dee2e6", fontWeight: "bold" },
+      width: "80px",
     },
-    { name: <b>Name</b>, selector: (row) => row.name, sortable: true },
-    { name: <b>Department</b>, selector: (row) => row.department, sortable: true },
-    { name: <b>Status</b>, selector: (row) => row.status },
+    { name: "Name", selector: (row) => row.name, sortable: true },
+    { name: "Department", selector: (row) => row.department, sortable: true },
+    { name: "Status", selector: (row) => row.status },
     {
-      name: <b>Action</b>,
+      name: "Actions",
       cell: (row) => <ActionColumn row={row} />,
       ignoreRowClick: true,
       allowOverflow: true,
       button: true,
+      width: "120px",
     },
   ];
 
-  // DataTable Styles
+  // DataTable Styles updated to match UI
   const customStyles = {
     table: {
       style: { textAlign: "left" },
     },
-    headCells: {
-      style: {
-         background: "radial-gradient(circle at top left, #4f5a66ff, #34495e)",
-         color:" #ecf0f1ff",
-      },
-    },
     headRow: {
       style: {
-        minHeight: "30px",
+        backgroundColor: "#212529", // Dark header background
+        color: "#ffffff",
+        minHeight: "45px",
+        fontWeight: "600",
+        fontSize: "14px",
       },
     },
     rows: {
       style: {
-        minHeight: "34px",
+        minHeight: "50px",
+        fontSize: "14px",
+        color: "#495057",
       },
     },
   };
 
+  const primaryColor = "#5650ce"; // Indigo/Purple color from the image
+
   return (
     <Main>
-      <div className="my-2 mt-4" style={{position: "relative", left: "5px" }}>
-        <Breadcrumb>
-          <Breadcrumb.Item linkAs={Link} linkProps={{ to: "/Home" }}>
-            Home
-          </Breadcrumb.Item> 
-          <Breadcrumb.Item active style={{ fontWeight: "bold" }}>
-            { "Employees List" }
-          </Breadcrumb.Item>
-        </Breadcrumb>
+      <div className="my-3 px-3" style={{ fontSize: "14px" }}>
+        <Link to="/Home" className="text-decoration-none" style={{ color: primaryColor }}>Home</Link>
+        <span className="text-muted mx-2">/</span>
+        <span className="text-muted">Employees</span>
       </div>
-      <Card style={{ boxShadow: "0 4px 20px rgba(0, 0, 0, 0.15), 0 0 20px rgba(0, 0, 0, 0.1)" }}>
-        <Container fluid className="p-3">
-          <div className="d-flex justify-content-between align-items-center mb-3">
-            <TextField
-              id="search"
-              placeholder="Search..."
-              value={filterText}
-              onChange={(e) => setFilterText(e.target.value)}
-              InputProps={{
-                startAdornment: (
-                  <InputAdornment position="start">
-                    <i className="fa fa-search"></i>
-                  </InputAdornment>
-                ),
-              }}
-            />
-            { hasAddPermission &&
-              <Button className="btn-sm" onClick={handleModalShow}>
-                <i className="fa fa-plus"></i>&nbsp;Add Employee
-              </Button>
-            }
+
+      <Container fluid className="px-3">
+        <Card className="border-0 shadow-sm" style={{ borderRadius: '8px' }}>
+          {/* Header Section */}
+          <div className="d-flex justify-content-between align-items-center p-3 border-bottom flex-wrap gap-3">
+            <div>
+              <h5 className="mb-0 fw-normal">Employee List</h5>
+              <small className="text-muted">{filteredEmployees.length} records</small>
+            </div>
+            
+            <div className="d-flex align-items-center gap-3 flex-wrap">
+              <TextField
+                id="search"
+                placeholder="Search..."
+                value={filterText}
+                onChange={(e) => setFilterText(e.target.value)}
+                size="small"
+                sx={{ minWidth: '200px', backgroundColor: '#fcfcfc' }}
+                InputProps={{
+                  startAdornment: (
+                    <InputAdornment position="start">
+                      <i className="fa fa-search text-muted"></i>
+                    </InputAdornment>
+                  ),
+                }}
+              />
+              
+              {hasAddPermission && (
+                <>
+                  <Button 
+                    className="px-3 border-0" 
+                    onClick={handleModalShow}
+                    style={{ backgroundColor: primaryColor }}
+                  >
+                    + Add Employee
+                  </Button>
+                </>
+              )}
+            </div>
           </div>
 
-          <DataTable
-            columns={columns}
-            data={filteredEmployees}
-            pagination
-            highlightOnHover
-            striped
-            customStyles={customStyles}
-          />
-        </Container>
-      </Card>
+          {/* Data Table Section */}
+          <div className="p-0">
+            <DataTable
+              columns={columns}
+              data={filteredEmployees}
+              pagination
+              highlightOnHover
+              customStyles={customStyles}
+            />
+          </div>
+        </Card>
+      </Container>
 
+      {/* Add/Edit Modal */}
       <Modal show={showModal} onHide={handleModalClose} size="lg" backdrop="static">
         <Modal.Header closeButton>
           <Modal.Title>{isUpdate ? "Update Employee" : "Add Employee"}</Modal.Title>
@@ -301,7 +324,7 @@ export default function Employee() {
             </Row>
           </Modal.Body>
           <Modal.Footer>
-            <Button type="submit" variant="primary">
+            <Button type="submit" style={{ backgroundColor: primaryColor, border: 'none' }}>
               {isUpdate ? "Update" : "Add"}
             </Button>
           </Modal.Footer>

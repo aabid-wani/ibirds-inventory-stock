@@ -1,18 +1,12 @@
 import React, { useState, useEffect } from "react";
-import {
-  Container,
-  Row,
-  Col,
-  Button,
-  Table,
-  Form,
-  Card,
-  Alert,
-  Breadcrumb,
-} from "react-bootstrap";
-import { API_BASE_URL } from "../CONSTANT/CONSTANT";
+import { Container, Card, Button, Form } from "react-bootstrap";
+import * as XLSX from "xlsx";
+import { saveAs } from "file-saver";
 import Main from "../layout/Main";
 import { Link } from "react-router-dom";
+import { API_BASE_URL } from "../CONSTANT/CONSTANT";
+import { ToastContainer, toast } from "react-toastify";
+import "react-toastify/dist/ReactToastify.css";
 
 function LowStockReport() {
   const currentMonth = new Date().toISOString().slice(0, 7);
@@ -20,32 +14,18 @@ function LowStockReport() {
   const [report, setReport] = useState([]);
   const [monthOptions, setMonthOptions] = useState([]);
 
-  // Generic fetch with Bearer token and error handling
+  const primaryColor = "#5650ce";
+
   const fetchWithToken = async (url, options = {}) => {
-    // console.log("Fetching URL:", url, 'options ' ,options);
-
     const token = sessionStorage.getItem("token");
-    // console.log("Using Token:", token);
-
     const headers = {
       "Content-Type": "application/json",
       ...(options.headers || {}),
       ...(token ? { Authorization: `Bearer ${token}` } : {}),
     };
     try {
-      // console.log("Headers:", headers, 'options ' ,options);
       const response = await fetch(url, { ...options, headers });
-      // let data = await response.json();
-      // console.log("Response Data:", data);
       if (!response.ok) throw new Error(`Error: ${response.status}`);
-      // For DELETE, some APIs may not return JSON
-      if (options.method === "DELETE") {
-        try {
-          return await response.json();
-        } catch {
-          return response.status;
-        }
-      }
       return await response.json();
     } catch (error) {
       console.error("API error:", error);
@@ -57,45 +37,36 @@ function LowStockReport() {
     const start = new Date("2025-01-01");
     const now = new Date();
     const options = [];
-
     while (start <= now) {
       const year = start.getFullYear();
       const month = String(start.getMonth() + 1).padStart(2, "0");
       options.push(`${year}-${month}`);
       start.setMonth(start.getMonth() + 1);
     }
-
-    setMonthOptions(options);
+    setMonthOptions(options.reverse()); // Show most recent months first
   }, []);
 
   useEffect(() => {
     const fetchReport = async () => {
       if (!month) return;
       try {
-        const res = await fetchWithToken(
-          `${API_BASE_URL}/reports/low-stock?month=${month}`
-        );
-        console.log("Low Stock Report Data:", res.data);
+        const res = await fetchWithToken(`${API_BASE_URL}/reports/low-stock?month=${month}`);
         setReport(res.data || []);
       } catch (error) {
         console.error("Error fetching report:", error);
         setReport([]);
       }
     };
-
     fetchReport();
   }, [month]);
 
   const downloadCSV = () => {
+    if (!report.length) {
+      toast.warn("No data to download.");
+      return;
+    }
     const rows = [
-      [
-        "Product Name",
-        "Total Buy",
-        "Total Issue",
-        "Current Stock",
-        "Min Quantity",
-        "Created At",
-      ],
+      ["Product Name", "Total Buy", "Total Issue", "Current Stock", "Min Quantity", "Created At"],
       ...report.map((item) => [
         item.name,
         item.total_buy_quantity,
@@ -105,156 +76,90 @@ function LowStockReport() {
         new Date(item.created_at).toLocaleDateString(),
       ]),
     ];
-
     const csv = rows.map((r) => r.join(",")).join("\n");
     const blob = new Blob([csv], { type: "text/csv" });
-    const url = URL.createObjectURL(blob);
-
-    const link = document.createElement("a");
-    link.href = url;
-    link.download = `low_stock_report_${month}.csv`;
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
+    saveAs(blob, `low_stock_report_${month}.csv`);
   };
 
   return (
     <Main>
-      <div className="my-2 mt-4" style={{ position: "relative", left: "20px" }}>
-        <Breadcrumb>
-          <Breadcrumb.Item linkAs={Link} linkProps={{ to: "/Home" }}>
-            {" "}
-            Home{" "}
-          </Breadcrumb.Item>
-          <Breadcrumb.Item active style={{ fontWeight: "bold" }}>
-            {" "}
-            Low Stock List{" "}
-          </Breadcrumb.Item>
-        </Breadcrumb>
+      <div className="my-3 px-3" style={{ fontSize: "14px" }}>
+        <Link to="/Home" className="text-decoration-none" style={{ color: primaryColor }}>Home</Link>
+        <span className="text-muted mx-2">/</span>
+        <span className="text-muted">Low Stock Report</span>
       </div>
-      <Container className="mt-4">
-        <Card>
-          <Card.Body>
-            <Card.Title>Monthly Low Stock Report</Card.Title>
 
-            <Row className="align-items-end">
-              <Col md={4}>
-                <Form.Group controlId="monthDropdown">
-                  <Form.Label>Select Month</Form.Label>
-                  <Form.Select
-                    value={month}
-                    onChange={(e) => setMonth(e.target.value)}
-                  >
-                    {monthOptions.map((m) => {
-                      const date = new Date(`${m}-01`);
-                      const label = date.toLocaleString("default", {
-                        month: "long",
-                        year: "numeric",
-                      });
-                      return (
-                        <option key={m} value={m}>
-                          {label}
-                        </option>
-                      );
-                    })}
-                  </Form.Select>
-                </Form.Group>
-              </Col>
-              <Col md="auto">
-                <Button variant="success" onClick={downloadCSV}>
-                  Download
-                </Button>
-              </Col>
-            </Row>
-          </Card.Body>
-        </Card>
+      <Container fluid className="px-3">
+        <Card className="border-0 shadow-sm mb-4" style={{ borderRadius: "8px", overflow: "hidden" }}>
+          {/* Header Section */}
+          <div className="d-flex justify-content-between align-items-center p-3 border-bottom bg-white flex-wrap gap-3">
+            <div>
+              <h5 className="mb-0 fw-normal">Low Stock Report</h5>
+            </div>
+            
+            <div className="d-flex align-items-center gap-3">
+              <Form.Select
+                size="sm"
+                className="border-light-subtle shadow-none"
+                style={{ minWidth: "160px", backgroundColor: "#f8f9fa", cursor: "pointer" }}
+                value={month}
+                onChange={(e) => setMonth(e.target.value)}
+              >
+                {monthOptions.map((m) => {
+                  const date = new Date(`${m}-01`);
+                  const label = date.toLocaleString("default", { month: "long", year: "numeric" });
+                  return <option key={m} value={m}>{label}</option>;
+                })}
+              </Form.Select>
 
-        {report.length > 0 ? (
-          <div style={{ maxHeight: "60vh", overflow: "auto" }}>
-            <Table
-              striped
-              bordered
-              hover
-              style={{ borderCollapse: "collapse", width: "100%" }}
-            >
-              <thead style={{ position: "sticky", top: "0px", zIndex: "2" }}>
+              <Button
+                variant="success"
+                className="btn-sm px-3 d-flex align-items-center gap-2"
+                onClick={downloadCSV}
+              >
+                <i className="fa-solid fa-file-csv"></i> Export CSV
+              </Button>
+            </div>
+          </div>
+
+          {/* Table Section */}
+          <div className="p-0 table-responsive" style={{ maxHeight: "60vh", overflow: "auto" }}>
+            <table className="table table-hover align-middle mb-0" style={{ fontSize: "13px" }}>
+              <thead style={{ position: "sticky", top: 0, zIndex: 2, backgroundColor: "#212529", color: "#ffffff" }}>
                 <tr>
-                  <th
-                    style={{
-                      background:
-                        "radial-gradient(circle at top left, #4f5a66ff, #34495e)",
-                      color: " #ecf0f1ff",
-                    }}
-                  >
-                    Product Name
-                  </th>
-                  <th
-                    style={{
-                      background:
-                        "radial-gradient(circle at top left, #4f5a66ff, #34495e)",
-                      color: " #ecf0f1ff",
-                    }}
-                  >
-                    Total Buy
-                  </th>
-                  <th
-                    style={{
-                      background:
-                        "radial-gradient(circle at top left, #4f5a66ff, #34495e)",
-                      color: " #ecf0f1ff",
-                    }}
-                  >
-                    Total Issue
-                  </th>
-                  <th
-                    style={{
-                      background:
-                        "radial-gradient(circle at top left, #4f5a66ff, #34495e)",
-                      color: " #ecf0f1ff",
-                    }}
-                  >
-                    Current Stock
-                  </th>
-                  <th
-                    style={{
-                      background:
-                        "radial-gradient(circle at top left, #4f5a66ff, #34495e)",
-                      color: " #ecf0f1ff",
-                    }}
-                  >
-                    Min Quantity
-                  </th>
-                  <th
-                    style={{
-                      background:
-                        "radial-gradient(circle at top left, #4f5a66ff, #34495e)",
-                      color: " #ecf0f1ff",
-                    }}
-                  >
-                    Created At
-                  </th>
+                  <th style={{ fontWeight: "600", padding: "12px" }}>Product Name</th>
+                  <th style={{ fontWeight: "600", padding: "12px" }}>Total Buy</th>
+                  <th style={{ fontWeight: "600", padding: "12px" }}>Total Issue</th>
+                  <th style={{ fontWeight: "600", padding: "12px" }}>Current Stock</th>
+                  <th style={{ fontWeight: "600", padding: "12px" }}>Min Quantity</th>
+                  <th style={{ fontWeight: "600", padding: "12px" }}>Created At</th>
                 </tr>
               </thead>
               <tbody>
-                {report.map((item, i) => (
-                  <tr key={i}>
-                    <td>{item.name}</td>
-                    <td>{item.total_buy_quantity}</td>
-                    <td>{item.total_issue_quantity}</td>
-                    <td>{item.current_stock}</td>
-                    <td>{item.min_quantity}</td>
-                    <td>{new Date(item.created_at).toLocaleDateString()}</td>
+                {report.length > 0 ? (
+                  report.map((item, i) => (
+                    <tr key={i}>
+                      <td className="px-3 fw-medium text-dark">{item.name}</td>
+                      <td className="px-3">{item.total_buy_quantity}</td>
+                      <td className="px-3">{item.total_issue_quantity}</td>
+                      <td className="px-3 fw-bold text-danger">{item.current_stock}</td>
+                      <td className="px-3">{item.min_quantity}</td>
+                      <td className="px-3 text-muted">{new Date(item.created_at).toLocaleDateString()}</td>
+                    </tr>
+                  ))
+                ) : (
+                  <tr>
+                    <td colSpan="6" className="text-center py-5 text-muted">
+                      No data available for the selected month.
+                    </td>
                   </tr>
-                ))}
+                )}
               </tbody>
-            </Table>
+            </table>
           </div>
-        ) : (
-          <Alert variant="info" className="mt-4">
-            No report data available for <strong>{month}</strong>.
-          </Alert>
-        )}
+        </Card>
       </Container>
+      <ToastContainer />
     </Main>
   );
 }

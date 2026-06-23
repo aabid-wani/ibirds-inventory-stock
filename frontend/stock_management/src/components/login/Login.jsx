@@ -84,11 +84,12 @@ const Login = () => {
   return (
     <div className="container-fluid min-vh-100 d-flex align-items-center justify-content-center bg-light">
       <Card
-        className="shadow-lg"
         style={{
           maxWidth: "60vw",
           borderRadius: "12px",
           overflow: "hidden",
+          border: "0",
+          boxShadow: "0 20px 120px rgba(0, 0, 0, 0.1)",
         }}
       >
         <div className="row g-0 p-3">

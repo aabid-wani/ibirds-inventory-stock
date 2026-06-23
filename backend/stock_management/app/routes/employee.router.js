@@ -33,12 +33,15 @@ module.exports = function(app) {
     router.post('/create', fetchApi,  async (req, res) => {
        
         try {
+            
             const result = await Employee.addEmployee(req.body);
             res.status(201).json(result);
         } catch (error) {
-            res.status(500).json({ errors: "Error adding employee" });
+            console.error('Error adding employee:', error);
+            res.status(500).json({ errors: "Error adding employee", details: error.message });
         }
     });
+
 
     router.put('/update/:id', fetchApi, async (req, res) => {
         try {

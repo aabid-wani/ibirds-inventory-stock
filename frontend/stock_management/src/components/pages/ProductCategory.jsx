@@ -5,7 +5,6 @@ import {
   Row,
   Col,
   Card,
-  Breadcrumb,
   Modal,
   Button,
   Form,
@@ -29,12 +28,13 @@ export default function ProductCategory() {
   const [newCategory, setNewCategory] = useState({ name: "", status: "" });
   const { permissions, loginData } = useContext(AuthContext);
 
+  const primaryColor = "#5650ce";
+
   const handleGetData = async () => {
     try {
       const result = await stockManagementApis.getProductCategory();
       setProductCategory(result);
       setFilteredCategories(result);
-      // console.log("product category fetched:", result);
     } catch (error) {
       console.error("Error fetching product category:", error);
       setProductCategory([]);
@@ -54,16 +54,16 @@ export default function ProductCategory() {
     setFilteredCategories(filteredData);
   }, [filterText, productCategory]);
 
- const deleteHandle = async (id) => {
+  const deleteHandle = async (id) => {
     const isConfirmed = window.confirm('Are you sure you want to delete this record?');
     if (isConfirmed) {
       try {
-        const response = await stockManagementApis.deleteProductCategory(id);
-        toast.success('successfully to delete record')
+        await stockManagementApis.deleteProductCategory(id);
+        toast.success('Successfully deleted record');
         setProductCategory((prevPrd) => prevPrd.filter((ord) => ord.id !== id));
       } catch (error) {
         console.error('Error deleting record:', error);
-        toast.error('Error to deleting record');
+        toast.error('Error deleting record');
         setShowAlert(true);
       }
     } else {
@@ -98,11 +98,9 @@ export default function ProductCategory() {
 
   const handleSaveCategory = async (e) => {
     e.preventDefault();
-
-    let resp;
     try {
+      let resp;
       if (modalMode === "edit" && currentCategory) {
-        // Pass updated_by when updating
         const payload = { ...newCategory, updated_by: loginData?.id };
         resp = await stockManagementApis.updateProductCategory(
           currentCategory.id,
@@ -110,12 +108,11 @@ export default function ProductCategory() {
         );
         toast.success("Product category updated successfully");
       } else {
-        // Pass created_by when creating
         const payload = { ...newCategory, created_by: loginData?.id };
         resp = await stockManagementApis.addProductCategory(payload);
-        if(resp && resp.success){
+        if (resp && resp.success) {
           toast.success(resp.message || "Product Category Added");
-        }else{
+        } else {
           toast.error(resp.errors);
         }
       }
@@ -129,29 +126,28 @@ export default function ProductCategory() {
 
   const columns = [
     {
-      name: <b>S.No.</b>,
+      name: "S.No.",
       selector: (row, index) => index + 1,
       sortable: true,
-      width: "70px",
-      style: { borderRight: "2px solid #dee2e6", fontWeight: "bold" },
+      width: "80px",
     },
     {
-      name: <b>Name</b>,
+      name: "Name",
       selector: (row) => row.name,
       sortable: true,
     },
     {
-      name: <b>Category Status</b>,
+      name: "Category Status",
       selector: (row) => (row.status === "active" ? "active" : "inactive"),
       sortable: true,
     },
     {
-      name: <b>Created At</b>,
+      name: "Created At",
       selector: (row) => row.created_at,
       sortable: true,
     },
     {
-      name: <b>Action</b>,
+      name: "Actions",
       cell: (row) => {
         const hasEditPermission = permissions?.some(
           (role) =>
@@ -166,46 +162,57 @@ export default function ProductCategory() {
             (role.name !== "Data Entry" && role.delete)
         );
         return (
-          <>
-            {" "}
+          <div className="d-flex gap-2">
             {hasEditPermission && (
               <Button
-                className="mx-2 btn-sm border-0"
+                variant="outline-primary"
+                className="btn-sm d-flex align-items-center justify-content-center"
                 onClick={() => handleModalShow("edit", row)}
+                style={{ width: "32px", height: "32px", borderColor: "#a3a6dd", color: "#5650ce" }}
               >
                 <i className="fa-regular fa-edit" aria-hidden="true"></i>
               </Button>
             )}
             {hasDeletePermission && (
               <Button
-                className="bg-danger btn-sm border-0"
+                variant="outline-danger"
+                className="btn-sm d-flex align-items-center justify-content-center"
                 onClick={() => deleteHandle(row.id)}
+                style={{ width: "32px", height: "32px", borderColor: "#f5c2c7", color: "#dc3545" }}
               >
-                <i
-                  className="fa fa-trash"
-                  aria-hidden="true"
-                  style={{ color: "white" }}
-                ></i>
+                <i className="fa fa-trash" aria-hidden="true"></i>
               </Button>
             )}
-          </>
+          </div>
         );
       },
       ignoreRowClick: true,
       allowOverflow: true,
       button: true,
-      center: true,
+      width: "120px",
     },
   ];
 
   const customStyles = {
-    table: { style: { textAlign: "left" } },
-    headCells: { style:{ 
-          background: "radial-gradient(circle at top left, #4f5a66ff, #34495e)",
-          color:" #ecf0f1ff",
-      }},
-    headRow: { style: { minHeight: "30px" } },
-    rows: { style: { minHeight: "34px" } },
+    table: {
+      style: { textAlign: "left" },
+    },
+    headRow: {
+      style: {
+        backgroundColor: "#212529",
+        color: "#ffffff",
+        minHeight: "45px",
+        fontWeight: "600",
+        fontSize: "14px",
+      },
+    },
+    rows: {
+      style: {
+        minHeight: "50px",
+        fontSize: "14px",
+        color: "#495057",
+      },
+    },
   };
 
   const hasAddPermission = permissions?.some(
@@ -214,85 +221,76 @@ export default function ProductCategory() {
 
   return (
     <Main>
-      <ToastContainer />
-      <div className="my-2 mt-4" style={{ position: "relative", left: "5px" }}>
-        <Breadcrumb>
-          <Breadcrumb.Item linkAs={Link} linkProps={{ to: "/Home" }}>
-            Home
-          </Breadcrumb.Item>
-
-          <Breadcrumb.Item active style={{ fontWeight: "bold" }}>
-            {"Categories List"}
-          </Breadcrumb.Item>
-        </Breadcrumb>
+      <div className="my-3 px-3" style={{ fontSize: "14px" }}>
+        <Link to="/Home" className="text-decoration-none" style={{ color: primaryColor }}>
+          Home
+        </Link>
+        <span className="text-muted mx-2">/</span>
+        <span className="text-muted">Product Categories</span>
       </div>
 
-      <Card
-        style={{
-          boxShadow:
-            "0 4px 20px rgba(0, 0, 0, 0.15), 0 0 20px rgba(0, 0, 0, 0.1)",
-        }}
-      >
-        <Container fluid className="p-3">
-          <p style={{ fontWeight: "bold", fontSize: "16px" }}>
-            Product Category List
-          </p>
-          <hr />
-          <Row>
-            <Col>
-              <div className="d-flex justify-content-between align-items-center mb-1">
-                <TextField
-                  id="search"
-                  type="text"
-                  placeholder="Search..."
-                  value={filterText}
-                  onChange={(e) => setFilterText(e.target.value)}
-                  InputProps={{
-                    startAdornment: (
-                      <InputAdornment position="start">
-                        <i className="fa fa-search"></i>
-                      </InputAdornment>
-                    ),
-                  }}
-                />
-                <div className="d-flex">
-                    <Button
-                      className="btn-sm"
-                      onClick={() => handleModalShow("add")}
-                    >
-                      <i className="fa fa-plus" aria-hidden="true"></i>&nbsp;Add
-                      Category
-                    </Button>
-                </div>
-              </div>
-            </Col>
-          </Row>
-          <Row className="mt-3">
-            <Col>
-              <DataTable
-                columns={columns}
-                data={filteredCategories}
-                pagination
-                highlightOnHover
-                striped
-                customStyles={customStyles}
-              />
-            </Col>
-          </Row>
-        </Container>
-      </Card>
+      <Container fluid className="px-3">
+        <Card className="border-0 shadow-sm" style={{ borderRadius: "8px" }}>
+          {/* Header Section */}
+          <div className="d-flex justify-content-between align-items-center p-3 border-bottom flex-wrap gap-3">
+            <div>
+              <h5 className="mb-0 fw-normal">Product Category List</h5>
+              <small className="text-muted">{filteredCategories.length} records</small>
+            </div>
 
+            <div className="d-flex align-items-center gap-3 flex-wrap">
+              <TextField
+                id="search"
+                placeholder="Search..."
+                value={filterText}
+                onChange={(e) => setFilterText(e.target.value)}
+                size="small"
+                sx={{ minWidth: "200px", backgroundColor: "#fcfcfc" }}
+                InputProps={{
+                  startAdornment: (
+                    <InputAdornment position="start">
+                      <i className="fa fa-search text-muted"></i>
+                    </InputAdornment>
+                  ),
+                }}
+              />
+
+              {hasAddPermission && (
+                <Button
+                  className="px-3 border-0"
+                  onClick={() => handleModalShow("add")}
+                  style={{ backgroundColor: primaryColor }}
+                >
+                  <i className="fa fa-plus me-1" aria-hidden="true"></i> Add Category
+                </Button>
+              )}
+            </div>
+          </div>
+
+          {/* Data Table Section */}
+          <div className="p-0">
+            <DataTable
+              columns={columns}
+              data={filteredCategories}
+              pagination
+              highlightOnHover
+              customStyles={customStyles}
+              noDataComponent={<div className="p-4 text-muted">No Records Found</div>}
+            />
+          </div>
+        </Card>
+      </Container>
+
+      {/* Add/Edit Modal */}
       <Modal show={showModal} onHide={handleModalClose} backdrop="static">
         <Form onSubmit={handleSaveCategory}>
           <Modal.Header closeButton>
             <Modal.Title>
-              {modalMode === "edit"
-                ? "Update Product Category"
-                : "Add Product Category"}
+              {modalMode === "edit" ? "Update Product Category" : "Add Product Category"}
             </Modal.Title>
           </Modal.Header>
           <Modal.Body>
-            <div className="container">
+            <Container>
               <Row>
                 <Col md={12}>
                   <Form.Group className="mb-3">
@@ -331,18 +329,20 @@ export default function ProductCategory() {
                   </Form.Group>
                 </Col>
               </Row>
-            </div>
+            </Container>
           </Modal.Body>
           <Modal.Footer>
             <Button variant="secondary" onClick={handleModalClose}>
               Close
             </Button>
-            <Button variant="primary" type="submit">
+            <Button type="submit" style={{ backgroundColor: primaryColor, border: "none" }}>
               {modalMode === "edit" ? "Update" : "Add"}
             </Button>
           </Modal.Footer>
         </Form>
       </Modal>
+
+      <ToastContainer />
     </Main>
   );
 }

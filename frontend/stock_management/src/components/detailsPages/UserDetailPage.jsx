@@ -5,8 +5,6 @@ import "bootstrap/dist/css/bootstrap.min.css";
 import {
   Button,
   Card,
-  CardBody,
-  CardHeader,
   Col,
   Container,
   Row,
@@ -15,39 +13,39 @@ import {
   Tab,
   Modal,
   Form,
-  Toast,
-  Breadcrumb,
-  ToastContainer,
 } from "react-bootstrap";
 import "../../App.css";
 import Main from "../layout/Main";
 import { AuthContext } from "../context/AuthProvider";
+import { ToastContainer, toast } from "react-toastify";
+import "react-toastify/dist/ReactToastify.css";
 
 export default function UserDetailPage() {
   const { id } = useParams();
-  const { permissions , loginData} = useContext(AuthContext);
+  const { permissions, loginData } = useContext(AuthContext);
   const [user, setUser] = useState({});
   const [order, setOrder] = useState([]);
   const [showEditModal, setShowEditModal] = useState(false);
   const [editUserData, setEditUserData] = useState({
-      name:"",
-      contact:"",
-      email:"",
-      role_id:"",
-      user_name:"",
-      password:"",
-      branch_id:"",
-      status:"",
-      updated_by: loginData?.id
+    name: "",
+    contact: "",
+    email: "",
+    role_id: "",
+    user_name: "",
+    password: "",
+    branch_id: "",
+    status: "",
+    updated_by: loginData?.id
   });
-  const [showToast, setShowToast] = useState(false);
+
+  const primaryColor = "#5650ce";
 
   const handleOrderData = async (userId) => {
     try {
       const result = await stockManagementApis.getOrderByUserId(userId);
       setOrder(result);
     } catch (error) {
-      console.log("Order not fetched:", error);
+      console.error("Order not fetched:", error);
     }
   };
 
@@ -55,10 +53,9 @@ export default function UserDetailPage() {
     try {
       const result = await stockManagementApis.getUserById(userId);
       setUser(result[0]);
-      console.log("user data", result[0]);
       setEditUserData(result[0]);
     } catch (error) {
-      console.log("User not fetched:", error);
+      console.error("User not fetched:", error);
     }
   };
 
@@ -71,18 +68,19 @@ export default function UserDetailPage() {
     setEditUserData((prevData) => ({ ...prevData, [name]: value }));
   };
 
-  const handleSaveChanges = async () => {
-   const payload = { ...editUserData, updated_by: loginData?.id };
-   console.log('payload',payload);
-   
-  try {
-    await stockManagementApis.updateUser(user.id, payload);
-    setShowEditModal(false);
-    setShowToast(true);
-    handleUserData(user.id);
-  } catch (error) {
-    console.log("Error updating user:", error);
-  }
+  const handleSaveChanges = async (e) => {
+    e.preventDefault();
+    const payload = { ...editUserData, updated_by: loginData?.id };
+    
+    try {
+      await stockManagementApis.updateUser(user.id, payload);
+      setShowEditModal(false);
+      toast.success("User updated successfully");
+      handleUserData(user.id);
+    } catch (error) {
+      toast.error("Error updating user");
+      console.error("Error updating user:", error);
+    }
   };
 
   useEffect(() => {
@@ -99,210 +97,179 @@ export default function UserDetailPage() {
     (role) => role.name === "Admin" || role.name === "Super Admin"
   );
 
+  // Helper component for rendering detail rows cleanly
+  const DetailItem = ({ label, value, highlight = false }) => (
+    <div className="mb-4">
+      <small className="text-muted d-block text-uppercase fw-semibold mb-1" style={{ fontSize: "11px", letterSpacing: "0.5px" }}>
+        {label}
+      </small>
+      <div className={`fs-6 ${highlight ? 'fw-bold' : 'text-dark'}`} style={{ color: highlight ? primaryColor : 'inherit' }}>
+        {value || "-"}
+      </div>
+    </div>
+  );
+
   return (
     <Main>
-      <div className="my-2 mt-4" style={{ position: "relative", left: "10px" }}>
-        <Breadcrumb>
-          <Breadcrumb.Item linkAs={Link} linkProps={{ to: "/Home" }}>
-            Home
-          </Breadcrumb.Item>
-          <Breadcrumb.Item linkAs={Link} linkProps={{ to: "/user" }}>
-            Users
-          </Breadcrumb.Item>
-          <Breadcrumb.Item active style={{ fontWeight: "bold" }}>
-            {"User Details"}
-          </Breadcrumb.Item>
-        </Breadcrumb>
+      <ToastContainer />
+
+      {/* ─── Breadcrumbs ─── */}
+      <div className="my-3 px-3" style={{ fontSize: "14px" }}>
+        <Link to="/Home" className="text-decoration-none" style={{ color: primaryColor }}>Home</Link>
+        <span className="text-muted mx-2">/</span>
+        <Link to="/user" className="text-decoration-none" style={{ color: primaryColor }}>Users</Link>
+        <span className="text-muted mx-2">/</span>
+        <span className="text-muted">User Details</span>
       </div>
-      <Card style={{ boxShadow: "0 0 5px #a3a3a3" }}>
-        <CardHeader
-          style={{
-            background:
-              "radial-gradient(circle at top left, #4f5a66ff, #34495e)",
-            color: " #ecf0f1ff",
-          }}
-        >
-          <span style={{ fontSize: "18px" }}>User Details</span>
-          <Link to={`/user`}>
-            <Button
-              variant="danger"
-              className="float-end btn-sm mx-2 border-0"
-              style={{ padding: "3px 8px" }}
-            >
-              <i className="fa fa-close color-white border-0"></i>
-            </Button>
-          </Link>
-          {hasUpdatePermission && (
-            <Button
-              className="float-end btn-sm border-0"
-              style={{ padding: "3px 8px" }}
-              onClick={handleEditButtonClick}
-            >
-              <i className="fa-regular fa-edit"></i>
-            </Button>
-          )}
-        </CardHeader>
-        <CardBody>
-          <Container fluid style={{ fontSize: "16px" }}>
-            <Row className="row">
-              <Col sm={6} md={6} lg={12} xl={6}>
-                <div style={{ fontWeight: "bold" }}>Name</div>
-                <div>{user.name}</div>
-                <div className="mt-3" style={{ fontWeight: "bold" }}>
-                  Role
-                </div>
-                <div>{user.role_name}</div>
-                <div className="mt-3" style={{ fontWeight: "bold" }}>
-                  Branch
-                </div>
-                <div>{user.branch_name}</div>
-                <div className="mt-3" style={{ fontWeight: "bold" }}>
-                  Email
-                </div>
-                <div>{user.email}</div>
-              </Col>
 
-              <Col sm={6} md={6} lg={12} xl={6}>
-                <div style={{ fontWeight: "bold" }}>Contact</div>
-                <div>{user.contact}</div>
-                <div className="mt-3" style={{ fontWeight: "bold" }}>
-                  Username
-                </div>
-                <div>{user.user_name}</div>
-                <div className="mt-3" style={{ fontWeight: "bold" }}>
-                  Created At
-                </div>
-                <div>{user.created_at}</div>
-                <div className="mt-3" style={{ fontWeight: "bold" }}>
-                  Status
-                </div>
-                <div>{user.status ? "active" : "inactive"}</div>
-              </Col>
-            </Row>
-          </Container>
-        </CardBody>
-      </Card>
+      <Container fluid className="px-3">
+        {/* ─── User Profile Card ─── */}
+        <Card className="border-0 shadow-sm p-4 mb-4" style={{ borderRadius: "12px" }}>
+          
+          {/* Header Section */}
+          <div className="d-flex justify-content-between align-items-start mb-4 pb-3 border-bottom">
+            <div>
+              <div className="d-flex align-items-center gap-3 mb-2">
+                <h4 className="mb-0 fw-bold" style={{ color: "#2c3e50" }}>
+                  {user.name || "..."}
+                </h4>
+                <span className={`badge rounded-pill px-3 py-2 ${user.status === 'active' || user.status === true ? 'bg-success bg-opacity-10 text-success' : 'bg-danger bg-opacity-10 text-danger'}`} style={{ fontSize: "12px" }}>
+                  {user.status === 'active' || user.status === true ? "Active" : "Inactive"}
+                </span>
+              </div>
+              <span className="text-muted" style={{ fontSize: "14px" }}>
+                <i className="fa-regular fa-envelope me-2"></i>
+                {user.email || "No email available"}
+              </span>
+            </div>
+            
+            <div className="d-flex gap-3">
+              {hasUpdatePermission && (
+                <Button
+                  variant="outline-primary"
+                  className="d-flex align-items-center"
+                  onClick={handleEditButtonClick}
+                  style={{ borderColor: primaryColor, color: primaryColor, borderRadius: "6px" }}
+                >
+                  <i className="fa-regular fa-edit me-2" aria-hidden="true"></i> Edit
+                </Button>
+              )}
+              <Link to={`/user`}>
+                <Button
+                  variant="outline-secondary"
+                  className="d-flex align-items-center"
+                  style={{ borderRadius: "6px" }}
+                >
+                  <i className="fa-solid fa-arrow-left me-2" aria-hidden="true"></i> Back
+                </Button>
+              </Link>
+            </div>
+          </div>
 
-      <Card style={{ boxShadow: "0 0 5px #a3a3a3", marginTop: "20px" }}>
-        <CardHeader
-          style={{
-            background:
-              "radial-gradient(circle at top left, #4f5a66ff, #34495e)",
-            color: " #ecf0f1ff",
-          }}
-        >
-          <span style={{ fontSize: "18px" }}>Related</span>
-        </CardHeader>
-        <CardBody className="mt-1">
-          <Tabs defaultActiveKey="orders" id="user-detail-tabs">
-            <Tab eventKey="orders" title={`Orders: (${order.length})`}>
-              <Container
-                fluid
-                className="mt-4"
-                style={{ maxHeight: "30vh", overflow: "auto" }}
-              >
-                <Table striped bordered hover>
-                  <thead>
-                    <tr>
-                      <th
-                        style={{
-                          background:
-                            "radial-gradient(circle at top left, #4f5a66ff, #34495e)",
-                          color: " #ecf0f1ff",
-                        }}
-                      >
-                        Name
-                      </th>
-                      <th
-                        style={{
-                          background:
-                            "radial-gradient(circle at top left, #4f5a66ff, #34495e)",
-                          color: " #ecf0f1ff",
-                        }}
-                      >
-                        Order No.
-                      </th>
-                      <th
-                        style={{
-                          background:
-                            "radial-gradient(circle at top left, #4f5a66ff, #34495e)",
-                          color: " #ecf0f1ff",
-                        }}
-                      >
-                        Order Date
-                      </th>
-                      <th
-                        style={{
-                          background:
-                            "radial-gradient(circle at top left, #4f5a66ff, #34495e)",
-                          color: " #ecf0f1ff",
-                        }}
-                      >
-                        Order Status
-                      </th>
-                      <th
-                        style={{
-                          background:
-                            "radial-gradient(circle at top left, #4f5a66ff, #34495e)",
-                          color: " #ecf0f1ff",
-                        }}
-                      >
-                        Total Amount
-                      </th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {order.length > 0 ? (
-                      order.map((item, index) => (
-                        <tr key={index}>
-                          <td>
-                            <Link
-                              to={`/orderDetailPage/${item.id}`}
-                              style={{ textDecoration: "none" }}
-                            >
-                              {item.product_name}
-                            </Link>
-                          </td>
-                          <td>{item.order_number}</td>
-                          <td>{item.order_date}</td>
-                          <td>{item.status ? "Active" : "Inactive"}</td>
-                          <td>{item.total_amount}</td>
-                        </tr>
-                      ))
-                    ) : (
+          {/* Content Section */}
+          <Row className="g-4">
+            <Col md={6}>
+              <Card className="border-0 h-100" style={{ backgroundColor: "#f8f9fa", borderRadius: "10px" }}>
+                <Card.Body className="p-4">
+                  <h6 className="text-uppercase text-muted mb-4 fw-bold" style={{ fontSize: "13px", letterSpacing: "1px" }}>
+                    <i className="fa-regular fa-id-badge me-2"></i>Account Information
+                  </h6>
+                  <DetailItem label="Username" value={user.user_name} highlight={true} />
+                  <DetailItem label="Role" value={user.role_name} />
+                  <DetailItem label="Branch" value={user.branch_name} />
+                </Card.Body>
+              </Card>
+            </Col>
+
+            <Col md={6}>
+              <Card className="border-0 h-100" style={{ backgroundColor: "#f8f9fa", borderRadius: "10px" }}>
+                <Card.Body className="p-4">
+                  <h6 className="text-uppercase text-muted mb-4 fw-bold" style={{ fontSize: "13px", letterSpacing: "1px" }}>
+                    <i className="fa-solid fa-address-book me-2"></i>Contact & Activity
+                  </h6>
+                  <DetailItem label="Contact Number" value={user.contact} />
+                  <DetailItem label="Account Created" value={user.created_at} />
+                </Card.Body>
+              </Card>
+            </Col>
+          </Row>
+        </Card>
+
+        {/* ─── Related Orders ─── */}
+        <Card className="border-0 shadow-sm mb-4" style={{ borderRadius: "12px", overflow: "hidden" }}>
+          <div className="bg-light p-3 border-bottom">
+            <h6 className="mb-0 fw-bold text-uppercase text-muted" style={{ fontSize: "14px", letterSpacing: "1px" }}>Activity History</h6>
+          </div>
+          <Card.Body className="p-0">
+            <Tabs defaultActiveKey="orders" id="user-detail-tabs" className="px-3 pt-3 border-bottom-0 custom-tabs">
+              <Tab eventKey="orders" title={`Orders (${order.length})`}>
+                <div className="p-3" style={{ maxHeight: "40vh", overflowY: "auto" }}>
+                  <Table responsive hover className="align-middle mb-0" style={{ fontSize: 14 }}>
+                    <thead style={{ backgroundColor: "#212529", color: "#ffffff", position: "sticky", top: 0, zIndex: 1 }}>
                       <tr>
-                        <td colSpan="5" className="text-center">
-                          No orders found
-                        </td>
+                        <th style={{ backgroundColor: "inherit", color: "inherit", fontWeight: "600", padding: "12px", borderTopLeftRadius: "6px" }}>Product Name</th>
+                        <th style={{ backgroundColor: "inherit", color: "inherit", fontWeight: "600", padding: "12px" }}>Order No.</th>
+                        <th style={{ backgroundColor: "inherit", color: "inherit", fontWeight: "600", padding: "12px" }}>Order Date</th>
+                        <th style={{ backgroundColor: "inherit", color: "inherit", fontWeight: "600", padding: "12px" }}>Order Status</th>
+                        <th style={{ backgroundColor: "inherit", color: "inherit", fontWeight: "600", padding: "12px", borderTopRightRadius: "6px" }}>Total Amount</th>
                       </tr>
-                    )}
-                  </tbody>
-                </Table>
-              </Container>
-            </Tab>
-          </Tabs>
-        </CardBody>
-      </Card>
+                    </thead>
+                    <tbody className="border-top-0">
+                      {order.length > 0 ? (
+                        order.map((item, index) => (
+                          <tr key={index}>
+                            <td className="p-3 fw-medium">
+                              <Link
+                                to={`/orderDetailPage/${item.id}`}
+                                style={{ textDecoration: "none", color: primaryColor }}
+                              >
+                                {item.product_name}
+                              </Link>
+                            </td>
+                            <td className="p-3 text-muted">{item.order_number}</td>
+                            <td className="p-3">{item.order_date}</td>
+                            <td className="p-3">
+                              <span className={`badge rounded-pill px-2 py-1 ${item.status ? 'bg-success bg-opacity-10 text-success' : 'bg-danger bg-opacity-10 text-danger'}`}>
+                                {item.status ? "Active" : "Inactive"}
+                              </span>
+                            </td>
+                            <td className="p-3 fw-semibold text-dark">{item.total_amount}</td>
+                          </tr>
+                        ))
+                      ) : (
+                        <tr>
+                          <td colSpan="5" className="text-center p-4 text-muted">
+                            No orders found for this user.
+                          </td>
+                        </tr>
+                      )}
+                    </tbody>
+                  </Table>
+                </div>
+              </Tab>
+            </Tabs>
+          </Card.Body>
+        </Card>
+      </Container>
 
+      {/* ─── Edit Modal ─── */}
       <Modal
         show={showEditModal}
         onHide={() => setShowEditModal(false)}
         backdrop="static"
         size="lg"
       >
-        <div className="container">
-          <div className="row">
-            <Modal.Header closeButton>
-              <Modal.Title>Edit User</Modal.Title>
-            </Modal.Header>
-          </div>
+        <Form onSubmit={handleSaveChanges}>
+          <Modal.Header closeButton>
+            <Modal.Title>Edit User Profile</Modal.Title>
+          </Modal.Header>
 
-          <Modal.Body>
-            <Form>
-              <div className="row">
-                <div className="col-lg-6">
-                  <Form.Group controlId="formName">
-                    <Form.Label>Name</Form.Label>
+          <Modal.Body className="p-4">
+            <Container>
+              <Row>
+                <Col lg={6}>
+                  <Form.Group controlId="formName" className="mb-4">
+                    <Form.Label className="text-muted" style={{ fontSize: "13px" }}>Name</Form.Label>
                     <Form.Control
                       type="text"
                       name="name"
@@ -310,10 +277,10 @@ export default function UserDetailPage() {
                       onChange={handleEditUserDataChange}
                     />
                   </Form.Group>
-                </div>
-                <div className="col-lg-6">
-                  <Form.Group controlId="formRole" className="mt-3">
-                    <Form.Label>Role</Form.Label>
+                </Col>
+                <Col lg={6}>
+                  <Form.Group controlId="formRole" className="mb-4">
+                    <Form.Label className="text-muted" style={{ fontSize: "13px" }}>Role</Form.Label>
                     <Form.Control
                       type="text"
                       name="role_name"
@@ -321,12 +288,12 @@ export default function UserDetailPage() {
                       onChange={handleEditUserDataChange}
                     />
                   </Form.Group>
-                </div>
-              </div>
-              <div className="row">
-                <div className="col-lg-6">
-                  <Form.Group controlId="formBranch" className="mt-3">
-                    <Form.Label>Branch</Form.Label>
+                </Col>
+              </Row>
+              <Row>
+                <Col lg={6}>
+                  <Form.Group controlId="formBranch" className="mb-4">
+                    <Form.Label className="text-muted" style={{ fontSize: "13px" }}>Branch</Form.Label>
                     <Form.Control
                       type="text"
                       name="branch_name"
@@ -334,10 +301,10 @@ export default function UserDetailPage() {
                       onChange={handleEditUserDataChange}
                     />
                   </Form.Group>
-                </div>
-                <div className="col-lg-6">
-                  <Form.Group controlId="formEmail" className="mt-3">
-                    <Form.Label>Email</Form.Label>
+                </Col>
+                <Col lg={6}>
+                  <Form.Group controlId="formEmail" className="mb-4">
+                    <Form.Label className="text-muted" style={{ fontSize: "13px" }}>Email</Form.Label>
                     <Form.Control
                       type="email"
                       name="email"
@@ -345,12 +312,12 @@ export default function UserDetailPage() {
                       onChange={handleEditUserDataChange}
                     />
                   </Form.Group>
-                </div>
-              </div>
-              <div className="row">
-                <div className="col-lg-6">
-                  <Form.Group controlId="formContact" className="mt-3">
-                    <Form.Label>Contact</Form.Label>
+                </Col>
+              </Row>
+              <Row>
+                <Col lg={6}>
+                  <Form.Group controlId="formContact" className="mb-4">
+                    <Form.Label className="text-muted" style={{ fontSize: "13px" }}>Contact</Form.Label>
                     <Form.Control
                       type="text"
                       name="contact"
@@ -358,10 +325,10 @@ export default function UserDetailPage() {
                       onChange={handleEditUserDataChange}
                     />
                   </Form.Group>
-                </div>
-                <div className="col-lg-6">
-                  <Form.Group controlId="formUsername" className="mt-3">
-                    <Form.Label>Username</Form.Label>
+                </Col>
+                <Col lg={6}>
+                  <Form.Group controlId="formUsername" className="mb-4">
+                    <Form.Label className="text-muted" style={{ fontSize: "13px" }}>Username</Form.Label>
                     <Form.Control
                       type="text"
                       name="user_name"
@@ -369,46 +336,38 @@ export default function UserDetailPage() {
                       onChange={handleEditUserDataChange}
                     />
                   </Form.Group>
-                </div>
-              </div>
-              <Form.Group controlId="formStatus" className="mt-3">
-                <Form.Label>Status</Form.Label>
-                <Form.Control
-                  as="select"
-                  name="user_status"
-                  value={editUserData.status ? "Active" : "Inactive"}
-                  onChange={handleEditUserDataChange}
-                >
-                  <option value="Active">Active</option>
-                  <option value="Inactive">Inactive</option>
-                </Form.Control>
-              </Form.Group>
-            </Form>
+                </Col>
+              </Row>
+              <Row>
+                <Col lg={6}>
+                  <Form.Group controlId="formStatus" className="mb-4">
+                    <Form.Label className="text-muted" style={{ fontSize: "13px" }}>Status</Form.Label>
+                    <Form.Control
+                      as="select"
+                      name="status"
+                      value={editUserData.status}
+                      onChange={handleEditUserDataChange}
+                    >
+                      <option value="active">Active</option>
+                      <option value="inactive">Inactive</option>
+                    </Form.Control>
+                  </Form.Group>
+                </Col>
+              </Row>
+            </Container>
           </Modal.Body>
-          <Modal.Footer>
+
+          <Modal.Footer className="bg-light">
             <Button variant="secondary" onClick={() => setShowEditModal(false)}>
-              Close
+              Cancel
             </Button>
-            <Button variant="primary" onClick={handleSaveChanges}>
-              Update
+            <Button variant="primary" type="submit" style={{ backgroundColor: primaryColor, border: "none" }}>
+              Save Changes
             </Button>
           </Modal.Footer>
-        </div>
+        </Form>
       </Modal>
 
-      <Toast
-        onClose={() => setShowToast(false)}
-        show={showToast}
-        delay={3000}
-        autohide
-        style={{
-          position: "fixed",
-          bottom: "20px",
-          right: "20px",
-        }}
-      >
-      <ToastContainer/>
-      </Toast>
     </Main>
   );
 }

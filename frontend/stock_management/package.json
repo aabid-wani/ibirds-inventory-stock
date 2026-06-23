@@ -29,6 +29,7 @@
     "react-bootstrap": "^2.10.2",
     "react-bootstrap-sidebar-menu": "^2.0.3",
     "react-data-table-component": "^7.6.2",
+    "react-datepicker": "^9.1.0",
     "react-dom": "^18.3.1",
     "react-flow-renderer": "^10.3.17",
     "react-hook-form": "^7.51.5",
@@ -44,7 +45,7 @@
     "xlsx": "^0.18.5"
   },
   "scripts": {
-    "start": "react-scripts start",
+    "start": "set PORT=9041 && react-scripts start",
     "build": "react-scripts build",
     "test": "react-scripts test",
     "eject": "react-scripts eject"

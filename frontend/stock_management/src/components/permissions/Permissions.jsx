@@ -117,7 +117,7 @@ const Permissions = () => {
 
   return (
     <Main>
-      <div className="my-2 mt-4" style={{ position: "relative", left: "5px" }}>
+      <div className="my-3 px-3" style={{ position: "relative", left: "10px" }}>
         <Breadcrumb>
           <Breadcrumb.Item linkAs={Link} linkProps={{ to: "/Home" }}>
             Home
@@ -127,11 +127,11 @@ const Permissions = () => {
           </Breadcrumb.Item>
         </Breadcrumb>
       </div>
-      <Card style={{ boxShadow: "0 4px 20px rgba(0, 0, 0, 0.15), 0 0 20px rgba(0, 0, 0, 0.1)",}}>
+      <Card className="px-3 m-3">
         <span
           style={{
             fontSize: "16px",
-            marginLeft: "10px",
+            marginLeft: "0px",
             height: "40px",
             padding: "5px",
           }}

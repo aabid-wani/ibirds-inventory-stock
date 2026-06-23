@@ -55,8 +55,8 @@ export const AuthProvider = ({ children }) => {
 
   // 🚪 LOGOUT FUNCTION
   const logout = () => {
+    // Token must live in sessionStorage (expires when tab is closed)
     sessionStorage.clear();
-    localStorage.clear();
     setLoginData(null);
     setLoginStatus(false);
     setToken(null);

@@ -1,14 +1,17 @@
 import React, { useState, useEffect } from "react";
-import { Breadcrumb, Card, Table } from "react-bootstrap";
+import { Card, Table, Button, Breadcrumb, Form, Container } from "react-bootstrap";
 import * as XLSX from "xlsx";
 import { saveAs } from "file-saver";
 import Main from "../layout/Main";
 import { Link } from "react-router-dom";
 import Apis from '../apis/StockManagementApis';
+
 const YearlyReport = () => {
   const [selectedYear, setSelectedYear] = useState("");
   const [years, setYears] = useState([]);
   const [yearlyReportData, setYearlyReportData] = useState([]);
+
+  const primaryColor = "#5650ce";
 
   useEffect(() => {
     const currentYear = new Date().getFullYear();
@@ -22,18 +25,18 @@ const YearlyReport = () => {
   }, []);
 
   useEffect(() => {
-      if (selectedYear) {
-        const fetchData = async () => {
-          try {
-            const response = await Apis.YearlyReport(selectedYear);
-            setYearlyReportData(response || []);
-          } catch (err) {
-            console.error("Error fetching yearly report:", err);
-          }
-        };
-        fetchData();
-      }
-    }, [selectedYear]);
+    if (selectedYear) {
+      const fetchData = async () => {
+        try {
+          const response = await Apis.YearlyReport(selectedYear);
+          setYearlyReportData(response || []);
+        } catch (err) {
+          console.error("Error fetching yearly report:", err);
+        }
+      };
+      fetchData();
+    }
+  }, [selectedYear]);
 
   const downloadYearlyExcel = () => {
     if (!yearlyReportData.length) {
@@ -81,94 +84,95 @@ const YearlyReport = () => {
 
   return (
     <Main>
-      <div className="my-2 mt-4" style={{ position: "relative", left: "15px" }}>
-        <Breadcrumb>
-          <Breadcrumb.Item linkAs={Link} linkProps={{ to: "/Home" }}>
-            Home
-          </Breadcrumb.Item>
-          <Breadcrumb.Item active style={{ fontWeight: "bold" }}>Monthly Report</Breadcrumb.Item>
-        </Breadcrumb>
+      <div className="my-3 px-3" style={{ fontSize: "14px" }}>
+        <Link to="/Home" className="text-decoration-none" style={{ color: primaryColor }}>Home</Link>
+        <span className="text-muted mx-2">/</span>
+        <span className="text-muted">Yearly Report</span>
       </div>
-      <div style={{ maxWidth: "80vw", maxHeight: "90vh" }}>
-        <Card className="mb-3 p-3 shadow mx-2">
-          <h4 className="mb-3">Yearly Inventory Report</h4>
-          <div className="d-flex align-items-center mb-3">
-            <label className="me-2">
-              <b>Select Year:</b>
-            </label>
-            <select
-              value={selectedYear}
-              onChange={(e) => setSelectedYear(e.target.value)}
-              className="form-select"
-              style={{ padding: "5px", borderRadius: "5px" }}
-            >
-              {years.map((year) => (
-                <option key={year.value} value={year.value}>
-                  {year.label}
-                </option>
-              ))}
-            </select>
-            <button
-              onClick={downloadYearlyExcel}
-              className="btn btn-success btn-sm ms-3"
-            >
-              Download
-            </button>
+
+      <Container fluid className="px-3">
+        <Card className="border-0 shadow-sm mb-4" style={{ borderRadius: "8px", overflow: "hidden" }}>
+          {/* Header Section */}
+          <div className="d-flex justify-content-between align-items-center p-3 border-bottom bg-white flex-wrap gap-3">
+            <div>
+              <h5 className="mb-0 fw-normal">Yearly Inventory Report</h5>
+            </div>
+            
+            <div className="d-flex align-items-center gap-3">
+              <div className="d-flex align-items-center">
+                <small className="text-muted me-2 fw-medium text-uppercase" style={{ fontSize: "12px" }}>Year:</small>
+                <Form.Select
+                  value={selectedYear}
+                  onChange={(e) => setSelectedYear(e.target.value)}
+                  size="sm"
+                  className="border-light-subtle shadow-none"
+                  style={{ minWidth: "120px", backgroundColor: "#f8f9fa", cursor: "pointer" }}
+                >
+                  {years.map((year) => (
+                    <option key={year.value} value={year.value}>
+                      {year.label}
+                    </option>
+                  ))}
+                </Form.Select>
+              </div>
+
+              <Button
+                onClick={downloadYearlyExcel}
+                className="btn-sm d-flex align-items-center gap-2 border-0 px-3"
+                style={{ backgroundColor: "#107c41" }} // Standard Excel Green
+              >
+                <i className="fa-solid fa-file-excel"></i> Export Excel
+              </Button>
+            </div>
           </div>
 
-          {yearlyReportData.length > 0 ? (
-            <div style={{ overflowX: "auto",  maxHeight:'65vh'}}>
-              <Table striped bordered hover style={{borderCollapse: "collapse", width: "100%"}}>
-                <thead style={{ position: "sticky",top: "0px",zIndex: "2"}}>
-                  <tr>
-                    <th style={{ 
-                    background: "radial-gradient(circle at top left, #4f5a66ff, #34495e)",
-                    color:" #ecf0f1ff",
-                }} >Product</th>
-                    <th style={{ 
-                    background: "radial-gradient(circle at top left, #4f5a66ff, #34495e)",
-                    color:" #ecf0f1ff",
-                }} >Opening Stock</th>
-                    {Array.from({ length: 12 }, (_, i) => (
-                      <th style={{ 
-                    background: "radial-gradient(circle at top left, #4f5a66ff, #34495e)",
-                    color:" #ecf0f1ff",
-                }} key={i}>
-                        {new Date(0, i).toLocaleString("default", {
-                          month: "long",
-                        })}
-                      </th>
-                    ))}
-                    <th style={{ 
-                    background: "radial-gradient(circle at top left, #4f5a66ff, #34495e)",
-                    color:" #ecf0f1ff",
-                }} >Closing Stock</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {yearlyReportData.map((item, index) => {
-                    const monthlyData = Array.isArray(item.monthly)
-                      ? item.monthly
-                      : Array(12).fill("");
-                    return (
-                      <tr key={index}>
-                        <td>{item.product}</td>
-                        <td>{item.opening_stock}</td>
-                        {monthlyData.slice(0, 12).map((value, i) => (
-                          <td key={i}>{value}</td>
-                        ))}
-                        <td>{item.closing_stock}</td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </Table>
-            </div>
-          ) : (
-            <p>No data available for the selected year.</p>
-          )}
+          {/* Data Table Section */}
+          <div className="p-0 bg-white">
+            {yearlyReportData.length > 0 ? (
+              <div className="table-responsive" style={{ maxHeight: "65vh" }}>
+                <Table bordered hover className="align-middle mb-0" style={{ fontSize: "13px", whiteSpace: "nowrap" }}>
+                  <thead style={{ position: "sticky", top: 0, zIndex: 2, backgroundColor: "#212529", color: "#ffffff" }}>
+                    <tr>
+                      <th style={{ backgroundColor: "inherit", color: "inherit", fontWeight: "600", padding: "12px", border: "1px solid #343a40" }}>Product</th>
+                      <th className="text-center" style={{ backgroundColor: "inherit", color: "inherit", fontWeight: "600", padding: "12px", border: "1px solid #343a40" }}>Opening Stock</th>
+                      {Array.from({ length: 12 }, (_, i) => (
+                        <th className="text-center" style={{ backgroundColor: "inherit", color: "inherit", fontWeight: "600", padding: "12px", border: "1px solid #343a40" }} key={i}>
+                          {new Date(0, i).toLocaleString("default", { month: "short" })}
+                        </th>
+                      ))}
+                      <th className="text-center" style={{ backgroundColor: "inherit", color: "inherit", fontWeight: "600", padding: "12px", border: "1px solid #343a40" }}>Closing Stock</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {yearlyReportData.map((item, index) => {
+                      const monthlyData = Array.isArray(item.monthly)
+                        ? item.monthly
+                        : Array(12).fill("");
+                      return (
+                        <tr key={index}>
+                          <td className="fw-medium px-3 text-dark bg-light" style={{ position: "sticky", left: 0, zIndex: 1 }}>{item.product}</td>
+                          <td className="text-center fw-medium text-muted bg-light">{item.opening_stock}</td>
+                          {monthlyData.slice(0, 12).map((value, i) => (
+                            <td key={i} className="text-center text-muted">
+                              {value || "-"}
+                            </td>
+                          ))}
+                          <td className="text-center fw-bold text-dark bg-light">{item.closing_stock}</td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </Table>
+              </div>
+            ) : (
+              <div className="p-5 text-center text-muted">
+                <i className="fa-regular fa-folder-open mb-3" style={{ fontSize: "48px", opacity: 0.5 }}></i>
+                <p>No data available for the selected year.</p>
+              </div>
+            )}
+          </div>
         </Card>
-      </div>
+      </Container>
     </Main>
   );
 };

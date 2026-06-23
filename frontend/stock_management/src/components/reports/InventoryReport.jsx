@@ -1,113 +1,105 @@
 import React, { useContext, useEffect, useState } from 'react';
-import Main from '../layout/Main';
-import 'bootstrap/dist/css/bootstrap.min.css';
-import { Breadcrumb, Table } from 'react-bootstrap';
 import { Link } from 'react-router-dom';
+import stockManagementApis from '../apis/StockManagementApis';
+import 'bootstrap/dist/css/bootstrap.min.css';
+import { Breadcrumb, Card, Container, Form, Table } from 'react-bootstrap';
+import Main from '../layout/Main';
 import { AuthContext } from '../context/AuthProvider';
-import Apis from '../apis/StockManagementApis';
+
 function InventoryReport() {
   const { permissions } = useContext(AuthContext);
   const currentYear = new Date().getFullYear();
   const [year, setYear] = useState(currentYear);
   const [report, setReport] = useState([]);
 
- const fetchReport = async (selectedYear) => {
+  const primaryColor = "#5650ce";
+
+  const fetchReport = async (selectedYear) => {
     try {
-      let result = await Apis.getInventoryReport(selectedYear);
-      // console.log('result=>',result);
+      let result = await stockManagementApis.getInventoryReport(selectedYear);
       setReport(result);
     } catch (err) {
       console.error('Error fetching report:', err);
+      setReport([]);
     }
   };
 
   useEffect(() => {
     fetchReport(year);
   }, [year]);
-  
-  let hasPermissionAdmin = permissions?.some((role) => role.name === "Admin" || role.name === "Super Admin")
-  // console.log('hasPermissionAdmin',hasPermissionAdmin);
+
   return (
     <Main>
-    {/* ( hasPermissionAdmin ? ( */}
-      <div className="my-2 mt-4" style={{position: "relative", left: "20px" }}>
-          <Breadcrumb>
-            <Breadcrumb.Item linkAs={Link} linkProps={{ to: "/Home" }}> Home </Breadcrumb.Item> 
-            <Breadcrumb.Item active style={{ fontWeight: "bold" }}> Inventory Report </Breadcrumb.Item>
-          </Breadcrumb>
+      <div className="my-3 px-3" style={{ fontSize: "14px" }}>
+        <Link to="/Home" className="text-decoration-none" style={{ color: primaryColor }}>Home</Link>
+        <span className="text-muted mx-2">/</span>
+        <span className="text-muted">Inventory Report</span>
       </div>
-      <div className="container mt-4 mx-2" >
-        <div className="card shadow">
-          <div className="card-header d-flex justify-content-between!important align-items-center">
-            <h5 className="mb-0 ">Inventory Report </h5>
-            <select className="form-select w-25 mx-3 " onChange={(e) => setYear(Number(e.target.value))} value={year} >
-              {[currentYear, currentYear - 1, currentYear - 2].map((y) => (
-                <option key={y} value={y}>
-                  {y}
-                </option>
-              ))}
-            </select>
-          </div>
-          <div className="card-body p-0" >
-            <div className="table-responsive" style={{position: 'relative',overflow: 'auto',maxHeight: '75vh'}}>
-             <Table striped bordered hover style={{borderCollapse: "collapse", width: "100%"}}>
-                <thead style={{ position: "sticky",top: "0px",zIndex: "2"}}>
-                  <tr>
-                    <th style={{ 
-                    background: "radial-gradient(circle at top left, #4f5a66ff, #34495e)",
-                    color:" #ecf0f1ff",
-                }} >Product</th>
-                    <th  style={{ 
-                    background: "radial-gradient(circle at top left, #4f5a66ff, #34495e)",
-                    color:" #ecf0f1ff",
-                }} >Total Buy Quantity</th>
-                    <th  style={{ 
-                    background: "radial-gradient(circle at top left, #4f5a66ff, #34495e)",
-                    color:" #ecf0f1ff",
-                }} >Total Issued Quantity</th>
-                    <th  style={{ 
-                    background: "radial-gradient(circle at top left, #4f5a66ff, #34495e)",
-                    color:" #ecf0f1ff",
-                }} >Issued ({year})</th>
-                    <th style={{ 
-                    background: "radial-gradient(circle at top left, #4f5a66ff, #34495e)",
-                    color:" #ecf0f1ff",
-                }} >Issued ({year - 1})</th>
-                    <th style={{ 
-                    background: "radial-gradient(circle at top left, #4f5a66ff, #34495e)",
-                    color:" #ecf0f1ff",
-                }} >Closing Stock</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {report.length === 0 ? (
-                    <tr>
-                      <td colSpan="6" className="text-center py-3">
-                        No data available
-                      </td>
-                    </tr>
-                  ) : (
-                    report.map((item, idx) => (
-                      <tr key={idx}>
-                        <td>{item.name}</td>
-                  
-                        <td>{item.total_buy_quantity}</td>
-                        <td>{item.total_issue_quantity}</td>
-                        <td>{item.issued_this_year}</td>
-                        <td>{item.issued_last_year}</td>
-                        <td>{item.closing_stock}</td>
-                      </tr>
-                    ))
-                  )}
-                </tbody>
-              </Table>
+
+      <Container fluid className="px-3">
+        <Card className="border-0 shadow-sm" style={{ borderRadius: "8px" }}>
+          {/* Header Section */}
+          <div className="d-flex justify-content-between align-items-center p-3 border-bottom flex-wrap gap-3">
+            <div>
+              <h5 className="mb-0 fw-normal">Inventory Report</h5>
+              <small className="text-muted">{report.length} items found</small>
+            </div>
+
+            <div className="d-flex align-items-center">
+                <small className="text-muted me-2 fw-medium text-uppercase" style={{ fontSize: "12px" }}>Year:</small>
+                <Form.Select 
+                    className="border-light-subtle shadow-none"
+                    style={{ minWidth: "120px", backgroundColor: "#f8f9fa", cursor: "pointer" }}
+                    size="sm"
+                    onChange={(e) => setYear(Number(e.target.value))} 
+                    value={year}
+                >
+                    {[currentYear, currentYear - 1, currentYear - 2].map((y) => (
+                    <option key={y} value={y}>
+                        {y}
+                    </option>
+                    ))}
+                </Form.Select>
             </div>
           </div>
-        </div>
-      </div>
-    {/* ):(
-      <div>loading...!</div>
-    )) */}
+
+          {/* Table Section */}
+          <div className="p-0 table-responsive" style={{ maxHeight: '65vh', overflow: 'auto' }}>
+            <Table hover className="align-middle mb-0" style={{ fontSize: "13px", whiteSpace: "nowrap" }}>
+              <thead style={{ position: "sticky", top: "0px", zIndex: "2", backgroundColor: "#212529", color: "#ffffff" }}>
+                <tr>
+                  <th style={{ fontWeight: "600", padding: "12px" }}>Product</th>
+                  <th style={{ fontWeight: "600", padding: "12px" }}>Total Buy Qty</th>
+                  <th style={{ fontWeight: "600", padding: "12px" }}>Total Issued Qty</th>
+                  <th style={{ fontWeight: "600", padding: "12px" }}>Issued ({year})</th>
+                  <th style={{ fontWeight: "600", padding: "12px" }}>Issued ({year - 1})</th>
+                  <th style={{ fontWeight: "600", padding: "12px" }}>Closing Stock</th>
+                </tr>
+              </thead>
+              <tbody>
+                {report.length === 0 ? (
+                  <tr>
+                    <td colSpan="6" className="text-center py-4 text-muted">
+                      No data available for the selected year
+                    </td>
+                  </tr>
+                ) : (
+                  report.map((item, idx) => (
+                    <tr key={idx}>
+                      <td className="px-3 fw-medium text-dark">{item.name}</td>
+                      <td className="px-3">{item.total_buy_quantity}</td>
+                      <td className="px-3">{item.total_issue_quantity}</td>
+                      <td className="px-3 fw-semibold text-primary">{item.issued_this_year}</td>
+                      <td className="px-3">{item.issued_last_year}</td>
+                      <td className="px-3 fw-bold text-dark">{item.closing_stock}</td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </Table>
+          </div>
+        </Card>
+      </Container>
     </Main>
   );
 }

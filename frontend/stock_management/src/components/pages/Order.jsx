@@ -1,12 +1,13 @@
 import React, { useContext, useEffect, useState } from 'react';
 import stockManagementApis from '../apis/StockManagementApis';
-import { Container, Row, Col, Card, Breadcrumb, Button, Modal, Form, ToastContainer } from 'react-bootstrap';
-import { Link, NavLink } from 'react-router-dom';
+import { Container, Row, Col, Card, Button, Modal, Form } from 'react-bootstrap';
+import { Link, NavLink, useNavigate } from 'react-router-dom';
 import DataTable from 'react-data-table-component';
 import { TextField, InputAdornment } from '@mui/material';
 import Main from '../layout/Main';
 import { AuthContext } from '../context/AuthProvider';
-import { toast } from 'react-toastify';
+import { toast, ToastContainer } from 'react-toastify';
+import "react-toastify/dist/ReactToastify.css";
 import moment from 'moment';
 
 export default function Order() {
@@ -18,9 +19,11 @@ export default function Order() {
   const [selectedOrder, setSelectedOrder] = useState(null);
   const [branches, setBranches] = useState([]);
   const [user, setUser] = useState([]);
-  const [vendor, setVendor] = useState();
-  const { permissions,loginData } = useContext(AuthContext);
+  const [vendor, setVendor] = useState([]);
+  const { permissions, loginData } = useContext(AuthContext);
   
+  const navigate = useNavigate();
+  const primaryColor = "#5650ce";
 
   useEffect(() => {
     const fetchVendorData = async () => {
@@ -41,13 +44,9 @@ export default function Order() {
     fetchVendorData();
   }, []);
 
-  
-
   const handleGetData = async () => {
     try {
-      
       const result = await stockManagementApis.getOrder();
-     
       setOrder(result);
       setFilteredOrders(result);
     } catch (error) {
@@ -60,17 +59,14 @@ export default function Order() {
     handleGetData();
   }, []);
 
-
-  
-
-const formatDate = (dateString) => {
-  try {
-    if (!dateString) return "";
-    return moment(dateString).format("DD/MM/YYYY");
-  } catch {
-    return "";
-  }
-};
+  const formatDate = (dateString) => {
+    try {
+      if (!dateString) return "";
+      return moment(dateString).format("DD/MM/YYYY");
+    } catch {
+      return "";
+    }
+  };
 
   useEffect(() => {
     const filteredData = order.filter((item) => {
@@ -92,7 +88,6 @@ const formatDate = (dateString) => {
     setFilteredOrders(filteredData);
   }, [filterText, filterMonth, order]);
   
-  
   const handleEditClick = (order) => {
     setSelectedOrder(order);
     setShowModal(true);
@@ -106,16 +101,12 @@ const formatDate = (dateString) => {
   const handleUpdateOrder = async (e) => {
     e.preventDefault();
     try {
-      // Pass updated_by when updating
       const payload = { ...selectedOrder, updated_by: loginData?.id };
-      console.log('payload=>',payload);
-      
       let resp = await stockManagementApis.updateOrder(selectedOrder.id, payload);
-      console.log('resp=>',resp);
       
       if(resp?.success){
         toast.success('Order updated successfully!');
-      }else{
+      } else {
         toast.error('Order not updated successfully!');
       }
       handleGetData();
@@ -123,6 +114,7 @@ const formatDate = (dateString) => {
       setSelectedOrder(null);
     } catch (error) {
       console.error('Error updating order:', error);
+      toast.error('An error occurred during update');
     }
   };
 
@@ -133,78 +125,79 @@ const formatDate = (dateString) => {
 
   const columns = [
     {
-      name: <b>S.No.</b>,
+      name: "S.No.",
       selector: (row, index) => index + 1,
       sortable: true,
-      width: '70px',
-      style: {
-        borderRight: '2px solid #dee2e6',
-        fontWeight: 'bold',
-      }
+      width: '80px',
     },
     {
-      name: <b>Order Number</b>, selector: row => row.id, sortable: true,
-      cell: (row, index) => (
+      name: "Order Number", 
+      selector: row => row.id, 
+      sortable: true,
+      cell: (row) => (
         <NavLink
-          style={{ textDecoration: 'none', color: '#007bff' }}
-          to={`/orderDetailPage/${row.id}`}>
+          style={{ textDecoration: 'none', color: primaryColor, fontWeight: '500' }}
+          to={`/orderDetailPage/${row.id}`}
+        >
           {`Or- ${row.order_number}`}
         </NavLink>
       )
     },
-    { name: <b>User</b>, selector: row => row.user_name, sortable: true },
-    { name: <b>Branch</b>, selector: row => row.branch_name, sortable: true },
-    { name: <b>Vendor</b>, selector: row => row.vendor_name, sortable: true},
-    { name: <b>Total Amount</b>, selector: row => row.total_amount, sortable: true },
-    { name: <b>Order Date</b>, selector: row => moment(row.order_date).format("DD-MM-YYYY"), sortable: true },
-    { name: <b>Status</b>, selector: row => row.status  === 'active' ? 'active' : 'inactive', sortable: true },
+    { name: "User", selector: row => row.user_name, sortable: true },
+    { name: "Branch", selector: row => row.branch_name, sortable: true },
+    { name: "Vendor", selector: row => row.vendor_name, sortable: true },
+    { name: "Total Amount", selector: row => row.total_amount, sortable: true },
+    { name: "Order Date", selector: row => moment(row.order_date).format("DD-MM-YYYY"), sortable: true },
+    { 
+      name: "Status", 
+      selector: row => row.status === 'active' ? 'active' : 'inactive', 
+      sortable: true 
+    },
     {
-      name: <b>Actions</b>,
+      name: "Actions",
       cell: row => {
         const hasEditPermission = permissions?.some(role => role.name === 'Admin' || role.name === 'Super Admin' || (role.name !== 'Data Entry' && role.edit));
-        const hasDeletePermission = permissions?.some(role => role.name === 'admin' || role.name === 'Super Admin' || (role.name !== 'Data Entry' && role.del));
 
         return (
-          <>
+          <div className="d-flex gap-2">
             {hasEditPermission && (
-              <Button className="mx-2 btn-sm border-0" onClick={() => handleEditClick(row)}>
-                <i className='fa-regular fa-edit' aria-hidden="true" ></i>
+              <Button 
+                variant="outline-primary"
+                className="btn-sm d-flex align-items-center justify-content-center" 
+                onClick={() => handleEditClick(row)}
+                style={{ width: "32px", height: "32px", borderColor: "#a3a6dd", color: primaryColor }}
+              >
+                <i className='fa-regular fa-edit' aria-hidden="true"></i>
               </Button>
             )}
-            {/* {hasDeletePermission && (
-              <Button className="bg-danger btn-sm border-0">
-                <i className='fa fa-trash' aria-hidden="true" onClick={() => deleteHandle(row.id)}></i>
-              </Button>
-            )} */}
-          </>
+          </div>
         );
       },
       ignoreRowClick: true,
       allowOverflow: true,
       button: true,
+      width: "100px"
     },
   ];
 
   const customStyles = {
     table: {
-      style: {
-        textAlign: 'left'
-      }
-    },
-    headCells: {
-      style: {
-        backgroundColor: '#343a40',
-        color: 'white',
-      }
+      style: { textAlign: 'left' }
     },
     headRow: {
       style: {
-        minHeight: '30px',
+        backgroundColor: "#212529",
+        color: "#ffffff",
+        minHeight: "45px",
+        fontWeight: "600",
+        fontSize: "14px",
       }
     },
     rows: {
       style: {
-        minHeight: '34px',
+        minHeight: "50px",
+        fontSize: "14px",
+        color: "#495057",
       }
     },
   };
@@ -213,86 +206,80 @@ const formatDate = (dateString) => {
 
   return (
     <Main>
-        <div className="my-2 mt-4" style={{ position: "relative", left: "5px" }}>
-          <Breadcrumb>
-            <Breadcrumb.Item linkAs={Link} linkProps={{ to: "/Home" }}>
-              Home
-            </Breadcrumb.Item> 
-            <Breadcrumb.Item active style={{ fontWeight: "bold" }}>
-              Purchases List
-            </Breadcrumb.Item>
-          </Breadcrumb>
-        </div>
-      <Card style={{ boxShadow: '0 4px 20px rgba(0, 0, 0, 0.15), 0 0 20px rgba(0, 0, 0, 0.1)' }} >
-        <Container fluid className='p-3'>
-          <p style={{ fontSize: "16px", fontWeight: 'bold' }}>Order List</p>
-          <hr />
-          <Row>
-            <Col>
-              <div className="d-flex justify-content-between align-items-center mb-3">
-                <TextField
-                  id="search"
-                  type="text"
-                  outlined='Search'
-                  label='Search'
-                  value={filterText}
-                  onChange={(e) => setFilterText(e.target.value)}
-                  InputProps={{
-                    startAdornment: (
-                      <InputAdornment position="start">
-                        <i className="fa fa-search"></i>
-                      </InputAdornment>
-                    ),
-                  }}
-                />
+      <div className="my-3 px-3" style={{ fontSize: "14px" }}>
+        <Link to="/Home" className="text-decoration-none" style={{ color: primaryColor }}>Home</Link>
+        <span className="text-muted mx-2">/</span>
+        <span className="text-muted">Purchases</span>
+      </div>
 
-                <Form.Control
-                  type="month"
-                  value={filterMonth}
-                  onChange={(e) => setFilterMonth(e.target.value)}
-                  style={{ maxWidth: "200px", marginLeft: "10px" }}
-                />
+      <Container fluid className="px-3">
+        <Card className="border-0 shadow-sm" style={{ borderRadius: '8px' }}>
+          {/* Header Section */}
+          <div className="d-flex justify-content-between align-items-center p-3 border-bottom flex-wrap gap-3">
+            <div>
+              <h5 className="mb-0 fw-normal">Order List</h5>
+              <small className="text-muted">{filteredOrders.length} records</small>
+            </div>
 
-                <div>
-                  {hasAddPermission && (
-                    <Button className="btn-sm">
-                      <NavLink to="/AddOrder" style={{ textDecoration: 'none', color: 'white' }}>
-                        <i className='fa fa-plus' aria-hidden='true'></i>&nbsp;Add Order
-                      </NavLink>
-                    </Button>
-                  )}
-                </div>
-              </div>
-            </Col>
-          </Row>
-          <Row>
-            <Col>
-              <DataTable
-                variant="dark"
-                columns={columns}
-                data={filteredOrders}
-                pagination
-                highlightOnHover
-                striped
-                customStyles={customStyles}
+            <div className="d-flex align-items-center gap-3 flex-wrap">
+              <TextField
+                id="search"
+                placeholder="Search..."
+                value={filterText}
+                onChange={(e) => setFilterText(e.target.value)}
+                size="small"
+                sx={{ minWidth: "200px", backgroundColor: "#fcfcfc" }}
+                InputProps={{
+                  startAdornment: (
+                    <InputAdornment position="start">
+                      <i className="fa fa-search text-muted"></i>
+                    </InputAdornment>
+                  ),
+                }}
               />
-            </Col>
-          </Row>
-        </Container>
-      </Card>
 
-      <Container>
-        <Modal show={showModal} onHide={handleCloseModal} backdrop="static" size="lg">
-          <Row>
-            <Col lg={12}>
-              <Modal.Header closeButton>
-                <Modal.Title>Update Order</Modal.Title>
-              </Modal.Header>
-            </Col>
-          </Row>
-          <Modal.Body>
-            {selectedOrder && (
-              <Form onSubmit={handleUpdateOrder}>
+              <Form.Control
+                type="month"
+                value={filterMonth}
+                onChange={(e) => setFilterMonth(e.target.value)}
+                style={{ width: "auto", backgroundColor: "#fcfcfc" }}
+              />
+
+              {hasAddPermission && (
+                <Button 
+                  className="px-3 border-0 d-flex align-items-center gap-2" 
+                  onClick={() => navigate('/AddOrder')}
+                  style={{ backgroundColor: primaryColor }}
+                >
+                  <i className='fa fa-plus' aria-hidden='true'></i> Add Order
+                </Button>
+              )}
+            </div>
+          </div>
+
+          {/* Data Table Section */}
+          <div className="p-0">
+            <DataTable
+              columns={columns}
+              data={filteredOrders}
+              pagination
+              highlightOnHover
+              customStyles={customStyles}
+              noDataComponent={<div className="p-4 text-muted">No Records Found</div>}
+            />
+          </div>
+        </Card>
+      </Container>
+
+      {/* Edit Modal */}
+      <Modal show={showModal} onHide={handleCloseModal} backdrop="static" size="lg">
+        <Modal.Header closeButton>
+          <Modal.Title>Update Order</Modal.Title>
+        </Modal.Header>
+        <Modal.Body className="p-3">
+          {selectedOrder && (
+            <Form onSubmit={handleUpdateOrder}>
+              <Container>
                 <Row>
                   <Col lg={6}>
                     <Form.Group className="mb-3" controlId="userName">
@@ -313,8 +300,8 @@ const formatDate = (dateString) => {
                       <Form.Label>Invoice Number</Form.Label>
                       <Form.Control
                         type="text"
-                        name="invoice Number"
-                        value={selectedOrder.invoice_number}
+                        name="invoice_number"
+                        value={selectedOrder.invoice_number || ''}
                         onChange={handleInputChange}
                       />
                     </Form.Group>
@@ -337,7 +324,7 @@ const formatDate = (dateString) => {
                   </Col>
 
                   <Col lg={6}>
-                    <Form.Group className="mb-3" controlId="orderNumber">
+                    <Form.Group className="mb-3" controlId="orderNumberField">
                       <Form.Label>Order Number</Form.Label>
                       <Form.Control
                         type="text"
@@ -351,7 +338,7 @@ const formatDate = (dateString) => {
 
                 <Row>
                   <Col lg={6}>
-                    <Form.Group className="mb-3" controlId="userName">
+                    <Form.Group className="mb-3" controlId="vendorName">
                       <Form.Label>Vendor</Form.Label>
                       <Form.Select name="vendor_id" value={selectedOrder.vendor_id} onChange={handleInputChange} required>
                         <option value="">Select Vendor</option>
@@ -372,7 +359,8 @@ const formatDate = (dateString) => {
                         type="text"
                         name="Date"
                         value={moment(selectedOrder.order_date).format('DD-MM-YYYY')}
-                        onChange={handleInputChange}
+                        disabled
+                        readOnly
                       />
                     </Form.Group>
                   </Col>
@@ -381,8 +369,7 @@ const formatDate = (dateString) => {
                   <Col lg={6}>
                     <Form.Group className="mb-3" controlId="status">
                       <Form.Label>Status</Form.Label>
-                      <Form.Control
-                        as="select"
+                      <Form.Select
                         name="status"
                         value={selectedOrder.status}
                         onChange={handleInputChange}
@@ -390,7 +377,7 @@ const formatDate = (dateString) => {
                         <option value="">Select Status</option>
                         <option value="active">Active</option>
                         <option value="inactive">Inactive</option>
-                      </Form.Control>
+                      </Form.Select>
                     </Form.Group>
                   </Col>
                   <Col lg={6}>
@@ -405,15 +392,21 @@ const formatDate = (dateString) => {
                     </Form.Group>
                   </Col>
                 </Row>
-                <Button variant="primary" className="float-end" type="submit">
+              </Container>
+              <Modal.Footer className="px-0 pb-0 border-0 mt-3">
+                <Button variant="secondary" onClick={handleCloseModal}>
+                  Cancel
+                </Button>
+                <Button type="submit" style={{ backgroundColor: primaryColor, border: 'none' }}>
                   Update
                 </Button>
-              </Form>
-            )}
-          </Modal.Body>
-        </Modal>
-      </Container>
-    <ToastContainer />
-    </Main >
+              </Modal.Footer>
+            </Form>
+          )}
+        </Modal.Body>
+      </Modal>
+
+      <ToastContainer />
+    </Main>
   );
 }
