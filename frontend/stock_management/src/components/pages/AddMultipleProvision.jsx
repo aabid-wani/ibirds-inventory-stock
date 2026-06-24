@@ -38,11 +38,11 @@ const AddMultipleProvision = () => {
     user_id: loginData?.id || "",
     user_name: loginData?.name || "",
     employee: "",
-    branch: "",
+    branch: "Head Office Ajmer",
     product: "",
     qty: "",
     date: new Date().toISOString().split("T")[0],
-    status: "inactive",
+    status: "active",
     description: "",
   });
 
@@ -85,6 +85,15 @@ const AddMultipleProvision = () => {
         setBranches(branchRes);
         setProducts(productRes.filter((p) => p.available_quantity > 0));
         setEmployees(employeeRes);
+
+        // Dynamically find "Head Office Ajmer" and set it on the first default row
+        const defaultBranch = branchRes.find(b => b.name && b.name.trim() === "Head Office Ajmer");
+        if (defaultBranch) {
+          setRows((prevRows) =>
+          // Removed (idx === 0) condition so it applies to ALL initial rows
+          prevRows.map((row) => ({ ...row, branch: defaultBranch.id }))
+        );
+      }
       } catch (err) {
         console.error("Error loading data:", err);
       } finally {
@@ -94,12 +103,37 @@ const AddMultipleProvision = () => {
     fetchData();
   }, [loginData?.id]);
 
+  // const handleChange = (index, field, value) => {
+  //   const updated = [...rows];
+  //   updated[index][field] = value;
+  //   if (field === "product") updated[index]["qty"] = "";
+  //   setRows(updated);
+  // };
+
+
   const handleChange = (index, field, value) => {
-    const updated = [...rows];
+  const updated = [...rows];
+  
+  if (field === "qty") {
+    const currentProductId = updated[index]["product"];
+    const maxAvailable = availableQty(currentProductId);
+    
+    // Convert input to a number for comparison
+    const numValue = Number(value);
+
+    // If they type a number higher than available, cap it at maxAvailable
+    if (numValue > maxAvailable) {
+      updated[index][field] = maxAvailable.toString();
+    } else {
+      updated[index][field] = value;
+    }
+  } else {
     updated[index][field] = value;
-    if (field === "product") updated[index]["qty"] = "";
-    setRows(updated);
-  };
+    if (field === "product") updated[index]["qty"] = ""; // Reset qty on product change
+  }
+
+  setRows(updated);
+};
 
   const addRow = () => setRows((prev) => [...prev, createNewRow()]);
 
@@ -298,18 +332,20 @@ const AddMultipleProvision = () => {
                             )}
                           </td>
                           <td className="mp-td" style={{ minWidth: 90 }}>
-                            <input
-                              className="mp-input"
-                              type="number"
-                              style={cellInput}
-                              value={row.qty}
-                              min={1}
-                              max={avail}
-                              disabled={avail <= 0}
-                              onChange={(e) => handleChange(idx, "qty", e.target.value)}
-                              placeholder="0"
-                            />
-                          </td>
+                              <input
+                                className="mp-input"
+                                type="number"
+                                style={cellInput}
+                                value={row.qty}
+                                min={1}
+                                max={avail}
+                                // Disables the field if no product is selected OR if the available quantity is 0 or less
+                                disabled={!row.product || avail <= 0} 
+                                onChange={(e) => handleChange(idx, "qty", e.target.value)}
+                                placeholder={avail <= 0 ? "N/A" : "0"}
+                              />
+                            </td>
+
                           <td className="mp-td" style={{ minWidth: 140 }}>
                             <input
                               className="mp-input"
