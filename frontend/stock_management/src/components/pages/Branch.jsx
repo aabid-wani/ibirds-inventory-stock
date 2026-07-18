@@ -19,7 +19,7 @@ import Main from "../layout/Main";
 import { AuthContext } from "../context/AuthProvider";
 
 export default function Branch() {
-  const [showAlert, setShowAlert] = useState(false);
+  const [, setShowAlert] = useState(false);
   const [branch, setBranch] = useState([]);
   const [filterText, setFilterText] = useState("");
   const [filteredCategories, setFilteredCategories] = useState([]);
@@ -88,7 +88,6 @@ export default function Branch() {
         handleGetData();
         setShow(false);
       } catch (error) {
-        console.error("Error adding/updating branch:", error);
         toast.error("Error adding/updating branch");
       }
     }
@@ -108,8 +107,8 @@ export default function Branch() {
       setBranch(result);
       setFilteredCategories(result);
     } catch (error) {
-      console.error("Error fetching branch:", error);
       setBranch([]);
+      throw new Error("Error fetching branch data:", error);
     }
   };
 
@@ -137,9 +136,8 @@ export default function Branch() {
         toast.success("Successfully deleted record");
         setBranch((prevOrders) => prevOrders.filter((ord) => ord.id !== id));
       } catch (error) {
-        console.error("Error deleting record:", error);
-        toast.error("Error deleting record");
         setShowAlert(true);
+        toast.error("Error deleting record");
       }
     } else {
       setShowAlert(true);

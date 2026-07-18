@@ -22,7 +22,7 @@ export default function AddOrder() {
   const { loginData } = useContext(AuthContext);
   const { id } = useParams();
   const [vendor, setVendor] = useState([]);
-  const [user, setUser] = useState([]);
+  const [, setUser] = useState([]);
   const [branch, setBranch] = useState([]);
   const [product, setProduct] = useState([]);
   const navigate = useNavigate();
@@ -74,16 +74,15 @@ export default function AddOrder() {
 
         if (id) {
           const orderData = await stockManagementApis.getOrderById(id);
-          // console.log("orderData", orderData);
+         
           if (orderData.length > 0) {
             const data = orderData[0];
-            // Set main order fields
+          
             for (const key in data) {
               if (key !== "orderLineItems") {
                 setValue(key, data[key]);
               }
             }
-            // Set line items if available
             if (data.orderLineItems) {
               reset({ ...data, orderLineItems: data.orderLineItems });
             } else {
@@ -92,7 +91,7 @@ export default function AddOrder() {
           }
         }
       } catch (error) {
-        console.error("Error loading initial data:", error);
+        return toast.error("Error fetching data: " + error.message);
       }
     }
     fetchData();
@@ -100,7 +99,6 @@ export default function AddOrder() {
 
   const watchOrderLineItems = watch("orderLineItems");
 
-  // Calculate total amount whenever line items change
   useEffect(() => {
     if (watchOrderLineItems && watchOrderLineItems.length > 0) {
       const total = watchOrderLineItems.reduce((acc, item) => {
@@ -116,10 +114,7 @@ export default function AddOrder() {
 
   const onSubmit = async (data) => {
 
-    console.log("Submitted data:", JSON.stringify(data, null, 2));
-
     try {
-      // Ensure at least one line item is present
       if (!data.orderLineItems || data.orderLineItems.length === 0) {
         toast.error("Please add at least one order line item.");
         return;
@@ -131,47 +126,36 @@ export default function AddOrder() {
         return acc + price * quantity;
       }, 0);
 
-    // Update total_amount before sending
       data.total_amount = total;
       data.updated_by = loginData?.id;
       
-      // const payload = { ...selectedOrder, updated_by: loginData?.id };
-
-      // If editing an existing order
       if (id) {
         await stockManagementApis.updateOrder(id, data);
 
-        // Optionally update order line items here if your backend supports it
-        
         await stockManagementApis.updateOrderLineItem(id, data.orderLineItems);
 
         toast.success("Order updated successfully");
        } else {
-          console.log('data', data);
-          
           const payload = { ...data, created_by: loginData?.id };
           const response = await stockManagementApis.AddOrder(payload);
-          console.log("orderAddResponse=>", response);
+
         if (response.success) {
-          console.log("Order creation response:", response);
           toast.success("Order and stock updated successfully");
         }
-        setTimeout(()=>{
+        const timer = setTimeout(()=>{
           navigate(`/orderDetailPage/${response.data.id}`);
         },3000);
+        return () => clearTimeout(timer);
       }
 
-      reset(); // Reset form after successful submission
+      reset();
     } catch (error) {
-      console.error("Error submitting order:", error);
       toast.error("Error submitting order");
     }
   };
 
   const addItem = () => append({ product_id: "", price: "", quantity: "" });
-  const removeItem = (index) => remove(index);
-  console.log(removeItem);
-  
+
 
   return (
     <Main>
@@ -194,7 +178,6 @@ export default function AddOrder() {
         <Container fluid>
           <Row className="justify-content-center">
             <Col lg={12}>
-              {/* Order Header Card */}
               <Card style={{ boxShadow: "0 4px 20px rgba(0, 0, 0, 0.15)" }} className="mb-4">
                 <Card.Header className="bg-white text-dark d-flex justify-content-between align-items-center">
                   <span style={{ fontSize: "16px", fontWeight: "bold" }}>
@@ -225,7 +208,6 @@ export default function AddOrder() {
                         {/* <option value={loginData.id}>{loginData.name}</option> */}
                      
                       </Form.Group>
-
                       <Form.Group className="mb-3">
                         <Form.Label>Branch</Form.Label>
                         <Form.Select
@@ -276,7 +258,7 @@ export default function AddOrder() {
                           {...register("invoice_number", {
                             required: "Invoice number is required",
                             pattern: {
-                              value: /^[a-zA-Z0-9\-_/]+$/, // Alphanumeric with optional hyphens/underscores/slashes
+                              value: /^[a-zA-Z0-9\-_/]+$/,
                               message: "Invoice Number must be alphanumeric only",
                             },
                           })}
@@ -319,7 +301,6 @@ export default function AddOrder() {
                 </Card.Body>
               </Card>
 
-              {/* Order Line Items Card */}
               <Card style={{ boxShadow: "0 4px 20px rgba(0, 0, 0, 0.15)" }}>
                 <Card.Header className="bg-white d-flex justify-content-between">
                   <h3 style={{ fontSize: "16px", fontWeight: "bold" }}>Order Line Items</h3>
@@ -329,7 +310,6 @@ export default function AddOrder() {
                 </Card.Header>
                 <Card.Body>
                   <div style={{ overflow: "auto", maxHeight: "25vh" }}>
-                    {/* Remove this nested <Form> - it's not needed */}
                     <Row
                       className="text-white bg-dark py-2"
                       style={{ fontWeight: "bold", fontSize: "16px", background: "radial-gradient(circle at top left, #4f5a66ff, #34495e)"}}
@@ -344,15 +324,14 @@ export default function AddOrder() {
                     {fields.map((item, index) => {
                       const selectedProductId = watch(`orderLineItems.${index}.product_id`);
                       const selectedProduct = product.find((p) => p.id === selectedProductId);
-                      // console.log('selectedProduct', selectedProduct);
+                      
                        let remaining;
-                      if (selectedProduct?.max_quantity == 0 && selectedProduct?.min_quantity == 0) {
+                      if (selectedProduct?.max_quantity === 0 && selectedProduct?.min_quantity === 0) {
                         remaining = selectedProduct?.total_buy_quantity;
                       } else {
                         remaining = selectedProduct ? (selectedProduct.max_quantity ?? 0) -  ((selectedProduct.total_buy_quantity || 0 ) - (selectedProduct.total_issue_quantity || 0)) : 0;
                       }
-                      console.log('remaining', remaining);
-
+                    
                       return (
                         <Row
                           key={item.id}
@@ -362,7 +341,6 @@ export default function AddOrder() {
                             paddingBottom: 10,
                           }}
                         >
-                          {/* Product Select */}
                           <Col lg={3}>
                             <Form.Select
                               {...register(
@@ -379,7 +357,7 @@ export default function AddOrder() {
                               {product.map((prod) => {
                                 let rem;
 
-                                if (prod.max_quantity == 0 && prod.min_quantity == 0) {
+                                if (prod.max_quantity === 0 && prod.min_quantity === 0) {
                                   rem = prod.total_buy_quantity;
                                 } else {
                                   rem = Math.max((prod.max_quantity ?? 0) - ((prod.total_buy_quantity || 0 ) - (prod.total_issue_quantity || 0)), 0);

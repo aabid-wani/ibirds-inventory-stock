@@ -31,7 +31,6 @@ module.exports = function(app) {
                 res.status(400).json({ errors: "No role found" });
             }
         } catch (error) {
-            console.error(error);
             res.status(500).json({ errors: "Internal Server Error" });
         }
     });
@@ -39,7 +38,7 @@ module.exports = function(app) {
     router.post('/create',fetchApi ,async (req, res)=> {
         try {
             const role = req.body;
-            console.log('role' , role);
+           
             
             const result = await Role.addRole(role);
             if (result) {
@@ -48,7 +47,6 @@ module.exports = function(app) {
                 res.status(400).json({ errors: "Error saving role" });
             }
         } catch (error) {
-            console.error('Error adding role:', error);
             res.status(error.status || 500).json({ errors: error.message || "Internal Server Error" });
         }
     });
@@ -68,7 +66,6 @@ module.exports = function(app) {
                 res.status(400).json({ errors: "Error updating role" });
             }
         } catch (error) {
-            console.error('Error updating role:', error);
             res.status(error.status || 500).json({ errors: error.message || "Internal Server Error" });
         }
     });
@@ -83,7 +80,6 @@ module.exports = function(app) {
                 res.status(400).json({ errors: "Error deleting role" });
             }
         } catch (error) {
-            console.error('Error deleting role:', error);
             res.status(error.status || 500).json({ errors: error.message || "Internal Server Error" });
         }
     });

@@ -54,7 +54,6 @@ export default function Location() {
       closeModal();
       fetchData();
     } catch (err) {
-      console.error(err);
       toast.error("Error saving location");
     }
   };
@@ -73,7 +72,6 @@ export default function Location() {
       setLocations((prev) => prev.filter((l) => l.id !== id));
       toast.success("Location deleted successfully");
     } catch (err) {
-      console.error(err);
       toast.error("Error deleting location");
     }
   };
@@ -84,7 +82,6 @@ export default function Location() {
       setLocations(result);
       setFilteredLocations(result);
     } catch (err) {
-      console.error(err);
       setLocations([]);
     }
   };

@@ -9,14 +9,12 @@ const multer = require('multer');
 const fileURLToPath = require('url').fileURLToPath;
 const path = require('path');
 const hostname = os.hostname();
-console.log('Hostname:', hostname);
 
 const interfaces = os.networkInterfaces();
 let currentIP = '';
 
 for (const name of Object.keys(interfaces)) {
   for (const iface of interfaces[name]) {
-    // Skip over internal (i.e., 127.0.0.1) and non-IPv4 addresses
     if (iface.family === 'IPv4' && !iface.internal) {
       currentIP = iface.address;
       break;
@@ -25,7 +23,7 @@ for (const name of Object.keys(interfaces)) {
   if (currentIP) break;
 }
 
-console.log('Current IP:', currentIP);
+
 var corsOptions = {
     origin: "*"
 };  
@@ -33,17 +31,9 @@ var corsOptions = {
 app.use(cors(corsOptions));
 app.use(bodyParser.json());
 app.use(express.json());
-
 app.use(express.urlencoded({ extended: true }));
 app.use('/uploads', express.static('uploads'));
-// For parsing multipart/form-data
 app.use(multer().any());
-//in node js 
-// const fileName = fileURLToPath(import.meta.url);
-// const dirName = path.dirname(fileName);
-// console.log('Current directory:', dirName);
-
-// simple route
 app.get("/", (req, res) => {
   res.json({ message: "Welcome to application. server" }); 
 });

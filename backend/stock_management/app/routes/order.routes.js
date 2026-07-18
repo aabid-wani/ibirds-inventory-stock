@@ -14,7 +14,6 @@ module.exports = function (app) {
                 res.status(404).send({  message: 'No order found' });
             }
         } catch (error) {
-            console.error('Error:', error.message);
             res.status(500).send({ message: 'Internal Server Error' });
         }
     });
@@ -29,7 +28,6 @@ module.exports = function (app) {
                 res.status(404).send({  message: 'No order found'  });
             }
         } catch (error) {
-            console.error('Error:', error.message);
             res.status(500).send({ message: 'Internal Server Error' });
         }
     });
@@ -44,7 +42,6 @@ module.exports = function (app) {
                 res.status(404).send({  message: 'No order found'  });
             }
         } catch (error) {
-            console.error('Error:', error.message);
             res.status(500).send({ message: 'Internal Server Error' });
         }
     });
@@ -60,13 +57,11 @@ module.exports = function (app) {
             }
             const result1 = await OrderLineItem.addOrderLineItems(order.orderLineItems,result[0].id);
             if (!result1) {
-                console.error('Error saving line items');
                 res.status(500).send({ message: 'Error saving line items' });
                 return;
             }
             res.status(200).send({success:true,data:result[0]});
         } catch (error) {
-            console.error(error);
             res.status(500).send({ message: 'Error saving order' });
         }
     });
@@ -86,7 +81,6 @@ module.exports = function (app) {
                 });
             }
         } catch (error) {
-            console.error('Error:', error.message);
             res.status(500).send({ message: 'Internal Server Error' });
         }
     });
@@ -105,7 +99,6 @@ module.exports = function (app) {
             res.status(404).send({ message: 'Error deleting order' });
             }
         } catch (err) {
-            console.error(err);
             res.status(500).json({ success:false, message: 'Internal server error' });
         }
         });

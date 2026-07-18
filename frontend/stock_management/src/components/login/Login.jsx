@@ -3,9 +3,6 @@ import { Alert, Button, Card, Form, Image } from 'react-bootstrap';
 import { useNavigate } from 'react-router-dom';
 import stockManagementApis from '../apis/StockManagementApis';
 import { AuthContext } from '../context/AuthProvider';
-// import loginImg from '../images/login.jpg';
-// import logo from '../../../public/images/stock.png'
-// import loginImg from '../../../public/logo192.png';
 import '../../App.css';
 
 const Login = () => {
@@ -41,13 +38,10 @@ const Login = () => {
   const getLogin = async (email, password) => {
 
     try {
-      console.log('Attempting login with:', { email, password });
       const response = await stockManagementApis.getUserLogin(email, password);
-      console.log('Login response:', response);
       
       return response;
     } catch (error) {
-      console.error('Login API error:', error);
       setShow(true);
       setErrors({ message: 'Failed to login. Please try again later.' });
       return null;
@@ -64,7 +58,6 @@ const Login = () => {
       const accessToken = response.token;
       setToken(accessToken);
       login(response.token);
-      console.log('Login successful, token set.');
       navigate('/home');
     } else {
       setLoginMessage(response?.message || 'Invalid credentials.');
@@ -102,7 +95,6 @@ const Login = () => {
             />
           </div>
 
-          {/* Right Side Form */}
           <div className="col-lg-6 col-12">
             <Card.Body className="p-4 p-md-5">
               <div className="text-center mb-4">
@@ -112,8 +104,7 @@ const Login = () => {
                   style={{ width: "80px", borderRadius: "10%" }}
                 />
               </div>
-              {/* <h4 className="text-center mb-4 fw-bold"></h4> */}
-
+              
               <Form onSubmit={handleSubmit}>
                 {show && (
                   <Alert variant="danger" className="mb-3">
@@ -121,7 +112,6 @@ const Login = () => {
                   </Alert>
                 )}
 
-                {/* Email */}
                 <Form.Group className="mb-3">
                   <Form.Label>Email address</Form.Label>
                   <Form.Control
@@ -137,7 +127,6 @@ const Login = () => {
                   )}
                 </Form.Group>
 
-                {/* Password */}
                 <Form.Group className="mb-3">
                   <Form.Label>Password</Form.Label>
                   <div className="position-relative">
@@ -166,7 +155,6 @@ const Login = () => {
                   )}
                 </Form.Group>
 
-                {/* Submit */}
                 <Button type="submit" className="w-100 mt-3" variant="primary">
                   Login
                 </Button>

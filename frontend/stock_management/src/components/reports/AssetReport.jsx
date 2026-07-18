@@ -10,7 +10,6 @@ import { saveAs } from "file-saver";
 import Main from "../layout/Main";
 import { Link } from "react-router-dom";
 
-/* ── helper: download current items as Excel ────────────────────── */
 const downloadItemsExcel = (items, year, quarter) => {
   if (!items.length) return;
   const ws = XLSX.utils.json_to_sheet(
@@ -54,8 +53,7 @@ export default function AssetReport() {
       );
       setSummary(res.data);
     } catch (err) {
-      console.error(err);
-      alert("Failed to load summary");
+      throw err;
     } finally {
       setLoadingSummary(false);
     }
@@ -71,8 +69,7 @@ export default function AssetReport() {
       const res = await stockManagementApis.getAssetsByQuarter(year, quarter);
       setDetailItems(res.data);
     } catch (err) {
-      console.error(err);
-      alert("Failed to load quarter list");
+       throw err;
     } finally {
       setDetailLoading(false);
     }
@@ -118,7 +115,7 @@ export default function AssetReport() {
       </div>
 
       <Container fluid className="px-3">
-        {/* Filter Card */}
+      
         <Card className="border-0 shadow-sm mb-4" style={{ borderRadius: "8px" }}>
           <Card.Body className="p-3">
             <Row className="g-3 align-items-end">
@@ -139,7 +136,6 @@ export default function AssetReport() {
           </Card.Body>
         </Card>
 
-        {/* Charts & Table Row */}
         <Row>
           <Col lg={6} className="mb-4">
             <Card className="border-0 shadow-sm" style={{ borderRadius: "8px" }}>
@@ -171,7 +167,6 @@ export default function AssetReport() {
         </Row>
       </Container>
 
-      {/* Detail Modal */}
       <Modal size="lg" show={showModal} onHide={() => setShowModal(false)} backdrop="static">
         <Modal.Header closeButton>
           <Modal.Title className="fs-5">Assets – Q{detailMeta.quarter} {detailMeta.year}</Modal.Title>

@@ -80,7 +80,7 @@ export default function OrderDetailPage() {
       setOrderForm(orderData);
       setProducts(productData);
     } catch (err) {
-      console.error("[fetchHeader] error", err);
+      throw new Error("Failed to fetch order header");
     }
   };
 
@@ -89,7 +89,7 @@ export default function OrderDetailPage() {
       const items = await stockManagementApis.getOrderLineItemById(id);
       setOrderLineItems(items);
     } catch (err) {
-      console.error("[fetchLineItems] error", err);
+      throw new Error("Failed to fetch order line items");
     }
   };
 
@@ -98,7 +98,7 @@ export default function OrderDetailPage() {
       const res = await stockManagementApis.getReturnByOrderId(id);
       setReturns(Array.isArray(res) ? res : []);
     } catch (err) {
-      console.error("[fetchReturns] error", err);
+      throw new Error("Failed to fetch returns");
     }
   };
 
@@ -162,7 +162,7 @@ export default function OrderDetailPage() {
       fetchHeader();
     } catch (err) {
       toast.error("Failed to update order");
-      console.error("[saveOrderHeader] error", err);
+      throw new Error("Failed to update order");
     }
   };
 
@@ -195,7 +195,7 @@ export default function OrderDetailPage() {
         closeLineModal();
       } catch (err) {
         toast.error("Failed to add return");
-        console.error("[return] API error", err);
+        throw new Error("Failed to add return");
       }
     } else {
         const line = orderLineItems.find((li) => li.id === editDetails.id);
@@ -264,7 +264,7 @@ export default function OrderDetailPage() {
           closeLineModal();
         } catch (err) {
           toast.error("Failed to update line item");
-          console.error("[edit] API error", err);
+          throw new Error("Failed to update line item");
         }
       }
   };
@@ -285,7 +285,7 @@ export default function OrderDetailPage() {
   <Main>
     <ToastContainer />
 
-    {/* ─── Breadcrumbs ─── */}
+
     <div className="my-3 px-3" style={{ fontSize: "14px" }}>
         <Link to="/Home" className="text-decoration-none" style={{ color: primaryColor }}>Home</Link>
         <span className="text-muted mx-2">/</span>
@@ -295,9 +295,8 @@ export default function OrderDetailPage() {
     </div>
 
     <Container fluid className="px-3">
-        {/* ─── Order header card ─── */}
         <Card className="border-0 shadow-sm p-4 mb-4" style={{ borderRadius: "12px" }}>
-            {/* Header Section */}
+         
             <div className="d-flex justify-content-between align-items-start mb-4 pb-3 border-bottom">
                 <div>
                     <div className="d-flex align-items-center gap-3 mb-2">
@@ -315,16 +314,6 @@ export default function OrderDetailPage() {
                 </div>
                 
                 <div className="d-flex gap-3">
-                    {/* {canUpdateHeader && (
-                        <Button
-                            variant="outline-primary"
-                            className="d-flex align-items-center"
-                            onClick={() => setShowOrderModal(true)}
-                            style={{ borderColor: primaryColor, color: primaryColor, borderRadius: "6px" }}
-                        >
-                            <i className="fa-regular fa-edit me-2" aria-hidden="true"></i> Edit
-                        </Button>
-                    )} */}
                     <Link to={`/order`}>
                         <Button
                             variant="outline-secondary"
@@ -337,7 +326,6 @@ export default function OrderDetailPage() {
                 </div>
             </div>
 
-            {/* Content Section */}
             <Row className="g-4">
                 <Col md={6}>
                     <Card className="border-0 h-100" style={{ backgroundColor: "#f8f9fa", borderRadius: "10px" }}>
@@ -370,7 +358,6 @@ export default function OrderDetailPage() {
             </Row>
         </Card>
 
-        {/* ─── Related (line items & returns) ─── */}
         <Card className="border-0 shadow-sm mb-4" style={{ borderRadius: "12px", overflow: "hidden" }}>
             <div className="bg-light p-3 border-bottom">
                 <h6 className="mb-0 fw-bold text-uppercase text-muted" style={{ fontSize: "14px", letterSpacing: "1px" }}>Related Records</h6>
@@ -379,7 +366,6 @@ export default function OrderDetailPage() {
             <Card.Body className="p-0">
                 <Tabs defaultActiveKey="orders" id="user-detail-tabs" className="px-3 pt-3 border-bottom-0 custom-tabs">
                 
-                {/* Line‑items Tab */}
                 <Tab eventKey="orders" title={`Order Line Items (${orderLineItems.length})`}>
                     <div className="p-3">
                         <Table responsive hover className="align-middle mb-0" style={{ fontSize: 14 }}>
@@ -437,7 +423,6 @@ export default function OrderDetailPage() {
                     </div>
                 </Tab>
 
-                {/* Returns Tab */}
                 <Tab eventKey="returns" title={`Returns (${returns.length})`}>
                     <div className="p-3">
                         <Table responsive hover className="align-middle mb-0" style={{ fontSize: 14 }}>
@@ -477,7 +462,6 @@ export default function OrderDetailPage() {
         </Card>
     </Container>
 
-    {/* Return / Edit Modal */}
     <Modal show={showLineModal} onHide={closeLineModal} backdrop="static">
       <Form onSubmit={submitLineModal}>
         <Modal.Header closeButton>
@@ -535,7 +519,7 @@ export default function OrderDetailPage() {
                     name="quantity"
                     type="number"
                     min={"0"}
-                    max={editDetails.max_quantity==0 ? "": editDetails.max_quantity}
+                    max={editDetails.max_quantity===0 ? "": editDetails.max_quantity}
                     value={editDetails.quantity}
                     onChange={(e) => setEditDetails({ ...editDetails, quantity: e.target.value })}
                     required
@@ -571,7 +555,6 @@ export default function OrderDetailPage() {
       </Form>
     </Modal>
 
-    {/* Order header edit Modal */}
     <Modal show={showOrderModal} onHide={() => setShowOrderModal(false)} backdrop="static" size="lg">
       <Form onSubmit={saveOrderHeader}>
         <Modal.Header closeButton>

@@ -1,19 +1,6 @@
 const connection = require("../config/db.connect.js");
 
-// async function getProduct() {
-//   try {
-//     const result = await connection.query(`
-//         SELECT
-//         prod.*, cat.name AS category_name
-//         from
-//         products prod inner join product_category cat on prod.category_id = cat.id
-//         ORDER BY prod.created_at DESC
-//         `);
-//     return result.rows;
-//   } catch (error) {
-//     throw error;
-//   }
-// }
+
 
 async function getProduct() {
   try {
@@ -219,8 +206,6 @@ async function updateProduct(id, product) {
     measurement_unit: measurement_units || null,
   };
  
- console.log('parsedValues',parsedValues);
-
   // if ( 
   //   parsedValues.min_quantity !== 0 &&  parsedValues.total_buy_quantity !== 0 &&
   //   (parsedValues.total_buy_quantity < parsedValues.min_quantity ||  parsedValues.total_buy_quantity > parsedValues.max_quantity) ) {
@@ -265,7 +250,6 @@ async function updateProduct(id, product) {
     // console.log("update product result", result.rows);
     return result.rows;
   } catch (error) {
-    console.error("Update error:", error.message);
     throw error;
   }
 }
@@ -283,7 +267,6 @@ async function deleteProduct(id) {
 }
 
 async function updateIssuedQuantities(updates) {
-  console.log("bulk update product", updates);
 
   try {
     await connection.query("BEGIN");

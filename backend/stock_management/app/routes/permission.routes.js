@@ -17,7 +17,6 @@ module.exports = function (app) {
             });
         }
         } catch (error) {
-            console.error(error);
             res.status(500).json({ errors: "Internal Server Error" });
         }
     });
@@ -35,7 +34,6 @@ module.exports = function (app) {
                 });
             }
         } catch (error) {
-            console.error(error);
             res.status(500).json({ errors: "Internal Server Error" });
         }
     });
@@ -54,7 +52,6 @@ module.exports = function (app) {
                 res.status(400).json({ errors: "Error saving permission" });
             }
         } catch (error) {
-            console.error('Error adding permission:', error);
             res.status(error.status || 500).json({ errors: error.message || "Internal Server Error" });
         }
     });
@@ -64,10 +61,7 @@ module.exports = function (app) {
         try {
             const permissionId = req.params.id;
             const permissionData = req.body;
-            // const existingPermission = await Permission.checkPermissionExists(permissionData.role_id, permissionData.module_id);
-            // if (existingPermission && existingPermission.id !== parseInt(permissionId)) {
-            //     return res.status(400).json({ errors: "Permission already exists for this role and module" });
-            // }
+           
             const result = await Permission.updatePermission(permissionId, permissionData);
             if (result) {
                 res.status(200).json({ success: true, message: "Permission Updated Successfully", result });
@@ -75,7 +69,6 @@ module.exports = function (app) {
                 res.status(400).json({ errors: "Error updating permission" });
             }
         } catch (error) {
-            console.error('Error checking existing permission:', error);
             return res.status(500).json({ errors: "Internal Server Error" });
         }
     });
@@ -84,7 +77,7 @@ module.exports = function (app) {
         try {
             const permissionId = req.params.id;
             const result = await Permission.deletePermission(permissionId);
-            // console.log('result value =>',result)
+            
             if (result) {
                 res.status(200).json({ success: true, message: "Permission Deleted Successfully" });
             } else {
@@ -93,7 +86,6 @@ module.exports = function (app) {
                 });
             }
         } catch (error) {
-            console.error('Error deleting permission:', error);
             res.status(500).json({ errors: "Internal Server Error" });
         }
     });
@@ -101,7 +93,7 @@ module.exports = function (app) {
     router.get('/role/:name', fetchApi ,async  (req, res)=> {
         const roleName = req.params.name;
         const permission = await Permission.getPermissionByRole(roleName);
-        // console.log('permission=>   : ',permission)
+      
        if (permission) {
             res.status(200).json(permission);
         } else {
@@ -122,7 +114,6 @@ module.exports = function (app) {
                 res.status(400).json({  errors: "No permission found" });
             } 
         } catch (error) {
-            console.error(error);
             res.status(500).json({ errors: "Internal Server Error" });
         }
     });
@@ -137,7 +128,6 @@ module.exports = function (app) {
                 res.status(400).json({ errors: "No permission found" });
             }
         } catch (error) {
-            console.error(error);
             res.status(500).json({ errors: "Internal Server Error" });
         }
     })

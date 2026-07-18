@@ -20,9 +20,7 @@ async function getRoleById(id){
 
 
 async function addRole(role){
-    try{
-        console.log(role);
-        
+    try{       
         const result = await connection.query(`INSERT INTO public.roles (name,status,created_by) VALUES ($1 ,$2, $3) RETURNING *`, [role.name,role.status,role.created_by]);
         return result.rows;
     }catch(error){

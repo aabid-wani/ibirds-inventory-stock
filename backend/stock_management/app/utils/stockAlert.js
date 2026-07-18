@@ -106,12 +106,9 @@ const sendStockAlert = async () => {
     };
 
     await transporter.sendMail(mailOptions);
-    console.log("Low stock email sent with attachment.");
-
-    // Optional: delete the temp file after sending
     fs.unlinkSync(filePath);
   } catch (error) {
-    console.error("Error sending stock alert email:", error);
+    throw error;
   }
 };
 

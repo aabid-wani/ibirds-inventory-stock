@@ -1,7 +1,6 @@
 const express = require('express')
 const Vendor = require('../models/vendor.model.js');
 const { fetchApi } = require('../middleware/fetchApi.js');
-
 module.exports = function(app) {
     var router = express.Router();
     router.get('/',  fetchApi, async (req, res)=> {
@@ -13,7 +12,6 @@ module.exports = function(app) {
                 res.status(404).send({  message: "No vendor found" })
             }
         } catch (error) {
-            console.error('Error:', error.message);
             res.status(500).send({ message: 'Internal Server Error' });
         }
     });
@@ -22,14 +20,13 @@ module.exports = function(app) {
         try {
             const vendorId = req.params.id;
             const vendor = await Vendor.getVendorById(vendorId);
-            console.log(vendor)
+       
             if (vendor) {
                 res.status(200).send(vendor)
             } else {
                 res.status(404).send({  message: "No vendor found" })
             }
          } catch (error) {
-            console.error('Error:', error.message);
             res.status(500).send({ message: 'Internal Server Error' }); 
         }
     }); 
@@ -46,7 +43,6 @@ module.exports = function(app) {
             })
         }
         } catch (error) {
-            console.error('Error:', error.message);
             res.status(500).send({ message: 'Internal Server Error' }); 
         }
     });
@@ -64,7 +60,6 @@ module.exports = function(app) {
                 })
             }
         } catch (error) {   
-            console.error('Error:', error.message);
             res.status(500).send({ message: 'Internal Server Error' }); 
         }
     });
@@ -82,7 +77,6 @@ module.exports = function(app) {
                 })
             }
         } catch (error) {
-            console.error('Error:', error.message);
             res.status(500).send({ message: 'Internal Server Error' }); 
         }
     });

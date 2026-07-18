@@ -55,7 +55,6 @@ async function addAsset(asset) {
 }
 
 async function updateAsset(id, asset) {
-  console.log('id=>',id,'asset=>',asset);
   const {
     location_id,
     asset_type_id,
@@ -114,7 +113,7 @@ async function deleteAsset(id) {
     clauses.push(`purchase_date <= $${params.length}`);
   }
 
-  const where = clauses.length ? "WHERE " + clauses.join(" AND ") : "";
+  where = clauses.length > 0 ? `WHERE ${clauses.join(' AND ')}` : '';
 
   const sql = `
     SELECT

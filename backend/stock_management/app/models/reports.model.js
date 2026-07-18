@@ -82,7 +82,6 @@ async function getIssuedProdQuantityMonthly(startDate, endDate) {
 
     return finalResult;
   } catch (error) {
-    console.error('Error in getIssuedProdQuantityMonthly:', error);
     throw error;
   }
 }
@@ -189,7 +188,6 @@ async function InventoryReport(year) {
 
     return result.rows;
   } catch (error) {
-    console.error("Error fetching inventory report:", error);
     res.status(500).json({ error: "Internal server error" });
   }
 }
@@ -229,8 +227,6 @@ async function lowStockReport(month) {
     const startDate = `${year}-${mon}-01`;
     const endDate = `${year}-${mon}-30`;
 
-    // console.log('startDate =>', startDate);
-    // console.log('endDate =>', endDate);
     let response = await connection.query(`
        SELECT 
           id, 

@@ -29,7 +29,7 @@ export default function Issue() {
   const [employees, setEmployees] = useState([]);
   const [products, setProducts] = useState([]);
   const [branches, setBranches] = useState([]);
-  const [validated, setValidated] = useState(false);
+  const [, setValidated] = useState(false);
   const [availableQty, setAvailableQty] = useState(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [loader, setLoader] = useState(false);
@@ -81,7 +81,7 @@ export default function Issue() {
           stockManagementApis.getProduct(),
         ]);
         setEmployees(emp); setBranches(branch); setProducts(product);
-      } catch (e) { console.error(e); }
+      } catch (e) { throw e; }
     };
     fetchRelated();
   }, []);

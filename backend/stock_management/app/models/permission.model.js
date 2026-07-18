@@ -50,7 +50,7 @@ async function addPermission(permission) {
         // console.log(result);
         return result.rows[0];
     } catch (error) {
-        console.error('Error adding permission', error);
+     
         throw error;
     }
 }

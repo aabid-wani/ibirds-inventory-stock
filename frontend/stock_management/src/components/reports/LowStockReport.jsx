@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from "react";
 import { Container, Card, Button, Form } from "react-bootstrap";
-import * as XLSX from "xlsx";
 import { saveAs } from "file-saver";
 import Main from "../layout/Main";
 import { Link } from "react-router-dom";
@@ -28,7 +27,6 @@ function LowStockReport() {
       if (!response.ok) throw new Error(`Error: ${response.status}`);
       return await response.json();
     } catch (error) {
-      console.error("API error:", error);
       throw error;
     }
   };
@@ -43,7 +41,7 @@ function LowStockReport() {
       options.push(`${year}-${month}`);
       start.setMonth(start.getMonth() + 1);
     }
-    setMonthOptions(options.reverse()); // Show most recent months first
+    setMonthOptions(options.reverse());
   }, []);
 
   useEffect(() => {
@@ -53,8 +51,8 @@ function LowStockReport() {
         const res = await fetchWithToken(`${API_BASE_URL}/reports/low-stock?month=${month}`);
         setReport(res.data || []);
       } catch (error) {
-        console.error("Error fetching report:", error);
         setReport([]);
+        throw error;
       }
     };
     fetchReport();
@@ -91,7 +89,7 @@ function LowStockReport() {
 
       <Container fluid className="px-3">
         <Card className="border-0 shadow-sm mb-4" style={{ borderRadius: "8px", overflow: "hidden" }}>
-          {/* Header Section */}
+         
           <div className="d-flex justify-content-between align-items-center p-3 border-bottom bg-white flex-wrap gap-3">
             <div>
               <h5 className="mb-0 fw-normal">Low Stock Report</h5>
@@ -122,7 +120,6 @@ function LowStockReport() {
             </div>
           </div>
 
-          {/* Table Section */}
           <div className="p-0 table-responsive" style={{ maxHeight: "60vh", overflow: "auto" }}>
             <table className="table table-hover align-middle mb-0" style={{ fontSize: "13px" }}>
               <thead style={{ position: "sticky", top: 0, zIndex: 2, backgroundColor: "#212529", color: "#ffffff" }}>

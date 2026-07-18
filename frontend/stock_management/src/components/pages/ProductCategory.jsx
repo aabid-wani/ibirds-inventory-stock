@@ -18,17 +18,16 @@ import { toast, ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 
 export default function ProductCategory() {
-  const [showAlert, setShowAlert] = useState(false);
   const [productCategory, setProductCategory] = useState([]);
   const [filterText, setFilterText] = useState("");
   const [filteredCategories, setFilteredCategories] = useState([]);
   const [showModal, setShowModal] = useState(false);
+  const [, setShowAlert] = useState(false);
   const [modalMode, setModalMode] = useState("add"); // 'add' or 'edit'
   const [currentCategory, setCurrentCategory] = useState(null);
   const [newCategory, setNewCategory] = useState({ name: "", status: "" });
   const { permissions, loginData } = useContext(AuthContext);
-
-  const primaryColor = "#5650ce";
+  const showConfirmModel = (message) => window.confirm(message);
 
   const handleGetData = async () => {
     try {
@@ -36,7 +35,6 @@ export default function ProductCategory() {
       setProductCategory(result);
       setFilteredCategories(result);
     } catch (error) {
-      console.error("Error fetching product category:", error);
       setProductCategory([]);
     }
   };
@@ -55,14 +53,13 @@ export default function ProductCategory() {
   }, [filterText, productCategory]);
 
   const deleteHandle = async (id) => {
-    const isConfirmed = window.confirm('Are you sure you want to delete this record?');
+    const isConfirmed = await showConfirmModel("Are you sure you want to delete this record?");
     if (isConfirmed) {
       try {
         await stockManagementApis.deleteProductCategory(id);
         toast.success('Successfully deleted record');
         setProductCategory((prevPrd) => prevPrd.filter((ord) => ord.id !== id));
       } catch (error) {
-        console.error('Error deleting record:', error);
         toast.error('Error deleting record');
         setShowAlert(true);
       }
@@ -119,7 +116,6 @@ export default function ProductCategory() {
       handleGetData();
       handleModalClose();
     } catch (error) {
-      console.error("Error saving category:", error);
       toast.error("Error saving category");
     }
   };
@@ -222,7 +218,7 @@ export default function ProductCategory() {
   return (
     <Main>
       <div className="my-3 px-3" style={{ fontSize: "14px" }}>
-        <Link to="/Home" className="text-decoration-none" style={{ color: primaryColor }}>
+        <Link to="/Home" className="text-decoration-none" style={{ color: "#5650ce" }}>
           Home
         </Link>
         <span className="text-muted mx-2">/</span>
@@ -231,7 +227,7 @@ export default function ProductCategory() {
 
       <Container fluid className="px-3">
         <Card className="border-0 shadow-sm" style={{ borderRadius: "8px" }}>
-          {/* Header Section */}
+          
           <div className="d-flex justify-content-between align-items-center p-3 border-bottom flex-wrap gap-3">
             <div>
               <h5 className="mb-0 fw-normal">Product Category List</h5>
@@ -259,7 +255,7 @@ export default function ProductCategory() {
                 <Button
                   className="px-3 border-0"
                   onClick={() => handleModalShow("add")}
-                  style={{ backgroundColor: primaryColor }}
+                  style={{ backgroundColor: "#5650ce" }}
                 >
                   <i className="fa fa-plus me-1" aria-hidden="true"></i> Add Category
                 </Button>
@@ -267,7 +263,6 @@ export default function ProductCategory() {
             </div>
           </div>
 
-          {/* Data Table Section */}
           <div className="p-0">
             <DataTable
               columns={columns}
@@ -281,7 +276,6 @@ export default function ProductCategory() {
         </Card>
       </Container>
 
-      {/* Add/Edit Modal */}
       <Modal show={showModal} onHide={handleModalClose} backdrop="static">
         <Form onSubmit={handleSaveCategory}>
           <Modal.Header closeButton>
@@ -335,7 +329,7 @@ export default function ProductCategory() {
             <Button variant="secondary" onClick={handleModalClose}>
               Close
             </Button>
-            <Button type="submit" style={{ backgroundColor: primaryColor, border: "none" }}>
+            <Button type="submit" style={{ backgroundColor: "#5650ce", border: "none" }}>
               {modalMode === "edit" ? "Update" : "Add"}
             </Button>
           </Modal.Footer>

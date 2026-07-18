@@ -27,7 +27,6 @@ module.exports = function(app){
                 res.status(404).json({errors : "No branch found"});
             }
         } catch (error) {
-            console.error(error);
             res.status(500).json({errors : "Internal Server Error"});
         }
     });
@@ -42,7 +41,6 @@ module.exports = function(app){
                 res.status(400).json({errors : "Error saving branch"});
             }
         } catch (error) {
-            console.error('Error adding branch:', error);
             res.status(error.status || 500).json({ errors: error.message || "Internal Server Error" });
         }
     }); 
@@ -59,7 +57,6 @@ module.exports = function(app){
                 res.status(400).json({errors : "Error updating branch"});
             }
         } catch (error) {
-            console.error('Error updating branch:', error);
             res.status(error.status || 500).json({ errors: error.message || "Internal Server Error" });
         }
     });
@@ -74,7 +71,6 @@ module.exports = function(app){
                 res.status(400).json({ success: false, errors: "Error deleting branch" });
             }
         } catch (error) {
-            console.error('Error deleting branch:', error);
             res.status(error.status || 500).json({ success: false, errors: error.message || "Internal Server Error" });
         }
     });

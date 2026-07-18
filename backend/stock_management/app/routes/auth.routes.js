@@ -27,7 +27,7 @@ module.exports = function (app) {
         try {
             const { email, password } = req.body;
             const user = await Auth.getUserLoginByEmail(email);
-            console.log("user from db:", user);
+           
             if (!user) {
                 return res.status(400).json({ errors: "No user found", success: false });
             }
@@ -37,11 +37,8 @@ module.exports = function (app) {
             if (!passwordMatch) {
                 return res.status(400).json({ errors: "Invalid password", success: false });
             }
-           // console.log("user role_id:", user.role_id);
             const permission = await Permission.getPermissionByRoleId(user.role_id);
             const token = jwt.sign({ user, permission }, process.env.JWT_SECRET, { expiresIn: 60 * 60 * 24 });
-            console.log("User data in token:", { user, permission });
-            console.log("Generated token:", token);
             res.status(200).json({ token, success: true });
         } catch (err) {
             res.status(500).json({ errors: "Server error", details: err.message, success: false });

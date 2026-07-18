@@ -20,8 +20,7 @@ export default function VendorDetailPage() {
     const [phoneValidation, setPhoneValidation] = useState(null);
     const [validated, setValidated] = useState(false);
 
-    const primaryColor = "#5650ce";
-
+  
     const handleVendorData = async (id) => {
         try {
             const result = await stockManagementApis.getVendorById(id);
@@ -29,10 +28,10 @@ export default function VendorDetailPage() {
                 setVendor(result[0]);
                 setSelectedVendor(result[0]);
             } else {
-                console.error('Vendor data not found');
+                toast.error('No vendor data found for the provided ID.');
             }
         } catch (error) {
-            console.error('Failed to fetch vendor:', error);
+            throw new Error('Error fetching vendor data');
         } finally {
             setLoading(false); 
         }
@@ -42,7 +41,6 @@ export default function VendorDetailPage() {
         if (id) {
             handleVendorData(id);
         } else {
-            console.error('Vendor ID not provided');
             setLoading(false); 
         }
     }, [id]);
@@ -52,8 +50,8 @@ export default function VendorDetailPage() {
             const result = await stockManagementApis.getBranch();
             setBranches(result);
         } catch (error) {
-            console.error('Error fetching branches:', error);
             setBranches([]);
+            throw new Error('Error fetching branches');
         }
     };
     
@@ -114,7 +112,6 @@ export default function VendorDetailPage() {
                 handleClose();
                 handleVendorData(id); 
             } catch (error) {
-                console.error('Error saving vendor:', error);
                 toast.error('Error saving vendor.');
             }
         }
@@ -134,7 +131,7 @@ export default function VendorDetailPage() {
         if (name === 'mobile') {
             const isValidLength = value.length === 10;
             const isNumeric = /^\d+$/.test(value); 
-            setPhoneValidation(isValidLength && isNumeric || value === '' ? null : 'Invalid mobile number');
+            setPhoneValidation(`${isValidLength} && ${isNumeric} || ${value} === '' ? ${null} : 'Invalid mobile number'`);
         }
 
         setSelectedVendor((prevVendor) => ({
@@ -149,7 +146,7 @@ export default function VendorDetailPage() {
             <small className="text-muted d-block text-uppercase fw-semibold mb-1" style={{ fontSize: "11px", letterSpacing: "0.5px" }}>
                 {label}
             </small>
-            <div className={`fs-6 ${highlight ? 'fw-bold' : 'text-dark'}`} style={{ color: highlight ? primaryColor : 'inherit' }}>
+            <div className={`fs-6 ${highlight ? 'fw-bold' : 'text-dark'}`} style={{ color: highlight ? "#5650ce" : 'inherit' }}>
                 {value || "-"}
             </div>
         </div>
@@ -159,20 +156,18 @@ export default function VendorDetailPage() {
         <Main>
             <ToastContainer />
             
-            {/* ─── Breadcrumbs ─── */}
+
             <div className="my-3 px-3" style={{ fontSize: "14px" }}>
-                <Link to="/Home" className="text-decoration-none" style={{ color: primaryColor }}>Home</Link>
+                <Link to="/Home" className="text-decoration-none" style={{ color: "#5650ce" }}>Home</Link>
                 <span className="text-muted mx-2">/</span>
-                <Link to="/vendor" className="text-decoration-none" style={{ color: primaryColor }}>Vendors</Link>
+                <Link to="/vendor" className="text-decoration-none" style={{ color: "#5650ce" }}>Vendors</Link>
                 <span className="text-muted mx-2">/</span>
                 <span className="text-muted">Vendor Details</span>
             </div>
 
             <Container fluid className="px-3">
-                {/* ─── Vendor Profile Card ─── */}
                 <Card className="border-0 shadow-sm p-4 mb-4" style={{ borderRadius: "12px" }}>
                     
-                    {/* Header Section */}
                     <div className="d-flex justify-content-between align-items-start mb-4 pb-3 border-bottom">
                         <div>
                             <div className="d-flex align-items-center gap-3 mb-2">
@@ -195,7 +190,7 @@ export default function VendorDetailPage() {
                                     variant="outline-primary"
                                     className="d-flex align-items-center"
                                     onClick={handleShow}
-                                    style={{ borderColor: primaryColor, color: primaryColor, borderRadius: "6px" }}
+                                    style={{ borderColor: "#5650ce", color: "#5650ce", borderRadius: "6px" }}
                                 >
                                     <i className="fa-regular fa-edit me-2" aria-hidden="true"></i> Edit
                                 </Button>
@@ -212,9 +207,7 @@ export default function VendorDetailPage() {
                         </div>
                     </div>
 
-                    {/* Content Section */}
                     <Row className="g-4">
-                        {/* Business Info Column */}
                         <Col md={6}>
                             <Card className="border-0 h-100" style={{ backgroundColor: "#f8f9fa", borderRadius: "10px" }}>
                                 <Card.Body className="p-4">
@@ -228,7 +221,6 @@ export default function VendorDetailPage() {
                             </Card>
                         </Col>
 
-                        {/* Location & Contact Column */}
                         <Col md={6}>
                             <Card className="border-0 h-100" style={{ backgroundColor: "#f8f9fa", borderRadius: "10px" }}>
                                 <Card.Body className="p-4">
@@ -418,7 +410,7 @@ export default function VendorDetailPage() {
                             <Button variant="secondary" onClick={handleClose}>
                                 Cancel
                             </Button>
-                            <Button type="submit" variant="primary" style={{ backgroundColor: primaryColor, border: 'none' }}>
+                            <Button type="submit" variant="primary" style={{ backgroundColor: "#5650ce", border: 'none' }}>
                                 Save Changes
                             </Button>
                         </Modal.Footer>

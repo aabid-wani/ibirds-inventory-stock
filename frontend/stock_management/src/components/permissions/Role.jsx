@@ -19,7 +19,6 @@ import { AuthContext } from "../context/AuthProvider";
 
 export default function Role() {
   const { loginData } = useContext(AuthContext);
-  const [showAlert, setShowAlert] = useState(false);
   const [roles, setRoles] = useState([]);
   const [filterText, setFilterText] = useState("");
   const [filteredRoles, setFilteredRoles] = useState([]);
@@ -27,8 +26,12 @@ export default function Role() {
   const [isUpdate, setIsUpdate] = useState(false);
   const [newRole, setNewRole] = useState({ name: "", status: "" });
   const [selectedRole, setSelectedRole] = useState(null);
-
-  const primaryColor = "#5650ce";
+  const [showConfirmModel, ] = useState(() => async (message) => {
+    return new Promise((resolve) => {
+      const confirmed = window.confirm(message);
+      resolve(confirmed);
+    });
+  });
 
   const handleModalClose = () => {
     setShowModal(false);
@@ -65,7 +68,6 @@ export default function Role() {
       handleModalClose();
       handleGetData();
     } catch (error) {
-      console.error(`Error ${isUpdate ? "updating" : "adding"} role:`, error);
       toast.error(`Role was not ${isUpdate ? "updated" : "added"}`);
     }
   };
@@ -83,7 +85,6 @@ export default function Role() {
       setRoles(result);
       setFilteredRoles(result);
     } catch (error) {
-      console.error("Error fetching roles:", error);
       setRoles([]);
     }
   };
@@ -101,21 +102,18 @@ export default function Role() {
     setFilteredRoles(filteredData);
   }, [filterText, roles]);
 
-  const deleteHandle = async (id) => {
-    const isConfirmed = window.confirm(
-      "Are you sure you want to delete this record?"
-    );
+  const deleteHandle = async (id) => {    
+    const isConfirmed = await showConfirmModel("Are you sure you want to delete this role?");
     if (isConfirmed) {
       try {
         await stockManagementApis.deleteRole(id);
         setRoles((prevRoles) => prevRoles.filter((role) => role.id !== id));
         toast.success("Role deleted successfully");
       } catch (error) {
-        console.error("Error deleting role:", error);
         toast.error("Role could not be deleted");
       }
     } else {
-      setShowAlert(true);
+      toast.info("Deletion cancelled");
     }
   };
 
@@ -144,7 +142,7 @@ export default function Role() {
             variant="outline-primary"
             className="btn-sm d-flex align-items-center justify-content-center"
             onClick={() => handleUpdateClick(row)}
-            style={{ width: "32px", height: "32px", borderColor: "#a3a6dd", color: primaryColor }}
+            style={{ width: "32px", height: "32px", borderColor: "#a3a6dd", color: "#5650ce" }}
           >
             <i className="fa-regular fa-edit" aria-hidden="true"></i>
           </Button>
@@ -190,14 +188,14 @@ export default function Role() {
   return (
     <Main>
       <div className="my-3 px-3" style={{ fontSize: "14px" }}>
-        <Link to="/Home" className="text-decoration-none" style={{ color: primaryColor }}>Home</Link>
+        <Link to="/Home" className="text-decoration-none" style={{ color: "#5650ce" }}>Home</Link>
         <span className="text-muted mx-2">/</span>
         <span className="text-muted">Roles</span>
       </div>
 
       <Container fluid className="px-3">
         <Card className="border-0 shadow-sm" style={{ borderRadius: "8px" }}>
-          {/* Header Section */}
+          
           <div className="d-flex justify-content-between align-items-center p-3 border-bottom flex-wrap gap-3">
             <div>
               <h5 className="mb-0 fw-normal">Role List</h5>
@@ -224,14 +222,13 @@ export default function Role() {
               <Button
                 className="px-3 border-0 d-flex align-items-center gap-2"
                 onClick={handleModalShow}
-                style={{ backgroundColor: primaryColor }}
+                style={{ backgroundColor: "#5650ce" }}
               >
                 <i className="fa fa-plus" aria-hidden="true"></i> Add Role
               </Button>
             </div>
           </div>
 
-          {/* Data Table Section */}
           <div className="p-0">
             <DataTable
               columns={columns}
@@ -244,7 +241,6 @@ export default function Role() {
           </div>
         </Card>
 
-        {/* Add/Edit Modal */}
         <Modal
           show={showModal}
           onHide={handleModalClose}
@@ -295,7 +291,7 @@ export default function Role() {
               <Button variant="secondary" onClick={handleModalClose}>
                 Close
               </Button>
-              <Button variant="primary" type="submit" style={{ backgroundColor: primaryColor, border: 'none' }}>
+              <Button variant="primary" type="submit" style={{ backgroundColor: "#5650ce", border: 'none' }}>
                 {isUpdate ? "Update Role" : "Add Role"}
               </Button>
             </Modal.Footer>

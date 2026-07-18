@@ -15,7 +15,6 @@ module.exports = function(app) {
         return res.status(404).json({ errors: "No data" });
       res.status(200).json(ats);
     } catch (err) {
-      console.error(err);
       res.status(500).json({ errors: "Server error" });
     }
   });
@@ -28,7 +27,6 @@ module.exports = function(app) {
         return res.status(404).json({ errors: "Not found" });
       res.status(200).json(rows[0]);
     } catch (err) {
-      console.error(err);
       res.status(500).json({ errors: "Server error" });
     }
   });
@@ -39,10 +37,10 @@ module.exports = function(app) {
       const rows = await AssetType.addAssetType(req.body);
       res.status(201).json(rows[0]);
     } catch (err) {
-      if (err.code === "23505") // unique_violation
-        return res.status(409).json({ errors: "Name or code exists" });
-      console.error(err);
-      res.status(500).json({ errors: "Server error" });
+        if (err.code === "23505"){
+          return res.status(409).json({ errors: "Name or code exists" });
+        }
+        res.status(500).json({ errors: "Server error" });
     }
   });
 
@@ -54,9 +52,9 @@ module.exports = function(app) {
         return res.status(404).json({ errors: "Not updated" });
       res.status(200).json(rows[0]);
     } catch (err) {
-      if (err.code === "23505")
+      if (err.code === "23505"){
         return res.status(409).json({ errors: "Name or code exists" });
-      console.error(err);
+      }
       res.status(500).json({ errors: "Server error" });
     }
   });
@@ -69,7 +67,6 @@ module.exports = function(app) {
         return res.status(404).json({ errors: "Not deleted" });
       res.status(200).json(rows[0]);
     } catch (err) {
-      console.error(err);
       res.status(500).json({ errors: "Server error" });
     }
   });

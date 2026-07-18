@@ -1,7 +1,7 @@
 const pool = require("../config/db.connect");
 
 async function getOpeningAndClosingStock(productId, startDate, endDate, carriedStock = null, previousBuyQty = null) {
-  // Fetch current total buy and created_at
+
   const productResult = await pool.query(`
     SELECT total_buy_quantity, created_at 
     FROM products 
@@ -16,14 +16,12 @@ async function getOpeningAndClosingStock(productId, startDate, endDate, carriedS
   const start = new Date(startDate);
 
   let openingStock = 0;
-  // console.log(currentBuyQty,'',productCreatedAt,'',start);
-  // console.log('carriedStock',carriedStock,'previousByQty',previousBuyQty);
   
   if (carriedStock !== null && previousBuyQty !== null) {
-    // New stock added this month
+    
     const newStockAdded = currentBuyQty - previousBuyQty;
     openingStock = carriedStock + newStockAdded;
-    // console.log(openingStock);
+
     
   } else {
   
@@ -38,7 +36,6 @@ async function getOpeningAndClosingStock(productId, startDate, endDate, carriedS
     
   }
 
-  // Get issues this period
   const periodIssues = await pool.query(`
     SELECT COALESCE(SUM(quantity), 0) AS total 
     FROM issues 
@@ -46,16 +43,16 @@ async function getOpeningAndClosingStock(productId, startDate, endDate, carriedS
   `, [productId, startDate, endDate]);
 
   const issuedThisPeriod = parseInt(periodIssues.rows[0].total);
-  // console.log(openingStock,'',issuedThisPeriod);
+  
   
   const closingStock = openingStock - issuedThisPeriod; 
-  // console.log('closingStock',closingStock);
+
   
 
   return {
     openingStock,
     closingStock,
-    totalBuyQtyThisMonth: currentBuyQty, // for next iteration
+    totalBuyQtyThisMonth: currentBuyQty, 
   };
 }
 

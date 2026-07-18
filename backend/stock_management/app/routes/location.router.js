@@ -12,7 +12,6 @@ module.exports = function (app) {
       }
       res.status(200).json(locations);
     } catch (err) {
-      console.error(err);
       res.status(500).json({ errors: "Server error" });
     }
   });
@@ -29,7 +28,6 @@ module.exports = function (app) {
       }
       res.status(200).json(location);
     } catch (err) {
-      console.error(err);
       res.status(500).json({ errors: "Server error" });
     }
   });
@@ -38,7 +36,6 @@ module.exports = function (app) {
 
   router.post("/create", fetchApi, async (req, res) => {
     try {
-      console.log(req.body)
       const payload = req.body;               
       const result  = await Location.addLocation(payload);
       res.status(201).json(result);          
@@ -46,7 +43,6 @@ module.exports = function (app) {
       if (err.code === "23505") {             // unique_violation
         return res.status(409).json({ errors: "Location name already exists" });
       }
-      console.error(err);
       res.status(500).json({ errors: "Server error" });
     }
   });
@@ -66,7 +62,6 @@ module.exports = function (app) {
       if (err.code === "23505") {
         return res.status(409).json({ errors: "Location name already exists" });
       }
-      console.error(err);
       res.status(500).json({ errors: "Server error" });
     }
   });
@@ -82,7 +77,6 @@ module.exports = function (app) {
       }
       res.status(200).json(result);
     } catch (err) {
-      console.error(err);
       res.status(500).json({ errors: "Server error" });
     }
   });

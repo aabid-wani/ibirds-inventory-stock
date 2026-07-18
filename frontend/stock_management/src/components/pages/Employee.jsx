@@ -65,7 +65,7 @@ export default function Employee() {
       handleModalClose();
       handleGetData();
     } catch (error) {
-      console.error("Error:", error);
+     
       toast.error("Operation failed");
     }
   };
@@ -89,8 +89,8 @@ export default function Employee() {
       setEmployees(result);
       setFilteredEmployees(result);
     } catch (error) {
-      console.error("Error fetching employees:", error);
       setEmployees([]);
+      throw new Error('Error fetching employee data');
     }
   };
 
@@ -117,8 +117,7 @@ export default function Employee() {
         setEmployees((prev) => prev.filter((emp) => emp.id !== id));
         toast.success("Employee deleted successfully");
       } catch (error) {
-        console.error("Error deleting employee:", error);
-        toast.error("Failed to delete employee");
+        throw new Error('Error deleting employee');
       }
     }
   };

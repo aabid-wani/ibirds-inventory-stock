@@ -1,6 +1,7 @@
 import React, { useContext, useEffect, useState } from 'react';
 import { Card, Col, Image, Row, Form, Button } from 'react-bootstrap';
 import stockManagementApis from '../apis/StockManagementApis';
+import { toast, ToastContainer } from 'react-toastify';
 import { AuthContext } from '../context/AuthProvider';
 import { Link } from 'react-router-dom';
 import Main from '../layout/Main';
@@ -71,9 +72,9 @@ export default function Profile() {
             if (selectedFile) formData.append('profile_image', selectedFile);
 
             await stockManagementApis.putUser(object.user_id, formData);
-            alert("Profile updated successfully!");
+            toast.success('Profile updated successfully');
         } catch (error) {
-            console.error('Error submitting data:', error);
+            toast.error('Error updating profile');
         }
     };
 
@@ -207,6 +208,8 @@ export default function Profile() {
                     </Form>
                 </Card.Body>
             </Card>
+            <ToastContainer position="top-right" autoClose={3000} hideProgressBar={false} newestOnTop closeOnClick rtl={false} pauseOnFocusLoss draggable pauseOnHover />
         </Main>
+        
     );
 }

@@ -42,7 +42,6 @@ const App = () => (
           <Route path="/" element={<Login />} />
           <Route path="/home" element={<HomePage />} />
 
-          {/* ✅ Users routes with permission control */}
           <Route
             path="/AddUser"
             element={
@@ -76,7 +75,6 @@ const App = () => (
             }
           />
 
-          {/* Other routes remain same */}
           <Route path="/addmultiprovision" element={<AddMultipleProvision />} />
           <Route path="/assets_report" element={<AssetReport />} />
           <Route path="/assets" element={<Assets />} />

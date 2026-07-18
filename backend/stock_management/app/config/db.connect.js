@@ -8,6 +8,5 @@ const pool = new Pool({
 })
 
 if(pool.connect()) {
-    console.log("connected to db")
 }
 module.exports = pool;

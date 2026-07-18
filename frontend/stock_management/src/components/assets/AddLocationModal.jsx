@@ -2,10 +2,7 @@ import { Modal, Form, Button } from "react-bootstrap";
 import { useState } from "react";
 import stockManagementApis from "../apis/StockManagementApis";
 
-/**
- * A simple child‑modal that lets the user create a new location.
- * After the row is successfully saved, it calls `onSaved(newRow)`.
- */
+
 export default function AddLocationModal({ show, onHide, onSaved }) {
   const [name, setName]       = useState("");
   const [saving, setSaving]   = useState(false);

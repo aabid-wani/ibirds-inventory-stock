@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { Card, Table, Button, Breadcrumb, Form, Container } from "react-bootstrap";
+import { Card, Table, Button, Form, Container } from "react-bootstrap";
 import * as XLSX from "xlsx";
 import { saveAs } from "file-saver";
 import Main from "../layout/Main";
@@ -31,7 +31,7 @@ const YearlyReport = () => {
           const response = await Apis.YearlyReport(selectedYear);
           setYearlyReportData(response || []);
         } catch (err) {
-          console.error("Error fetching yearly report:", err);
+          throw err;
         }
       };
       fetchData();
@@ -40,7 +40,7 @@ const YearlyReport = () => {
 
   const downloadYearlyExcel = () => {
     if (!yearlyReportData.length) {
-      alert("No yearly report data to download.");
+     
       return;
     }
 
@@ -92,7 +92,7 @@ const YearlyReport = () => {
 
       <Container fluid className="px-3">
         <Card className="border-0 shadow-sm mb-4" style={{ borderRadius: "8px", overflow: "hidden" }}>
-          {/* Header Section */}
+          
           <div className="d-flex justify-content-between align-items-center p-3 border-bottom bg-white flex-wrap gap-3">
             <div>
               <h5 className="mb-0 fw-normal">Yearly Inventory Report</h5>
@@ -119,14 +119,13 @@ const YearlyReport = () => {
               <Button
                 onClick={downloadYearlyExcel}
                 className="btn-sm d-flex align-items-center gap-2 border-0 px-3"
-                style={{ backgroundColor: "#107c41" }} // Standard Excel Green
+                style={{ backgroundColor: "#107c41" }}
               >
                 <i className="fa-solid fa-file-excel"></i> Export Excel
               </Button>
             </div>
           </div>
 
-          {/* Data Table Section */}
           <div className="p-0 bg-white">
             {yearlyReportData.length > 0 ? (
               <div className="table-responsive" style={{ maxHeight: "65vh" }}>

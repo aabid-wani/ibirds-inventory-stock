@@ -14,7 +14,7 @@ module.exports = function (app) {
         res.status(404).send({ message: "No products found." });
       }
     } catch (error) {
-      console.error("Error:", error.message);
+      
       res.status(500).send({ message: "Internal Server Error" });
     }
   });
@@ -31,7 +31,6 @@ module.exports = function (app) {
         });
       }
     } catch (error) {
-      console.error("Error:", error.message);
       res.status(500).send({ message: "Internal Server Error" });
     }
   });
@@ -48,7 +47,6 @@ module.exports = function (app) {
         });
       }
     } catch (error) {
-      console.error("Error:", error.message);
       res.status(500).send({ message: "Internal Server Error" });
     }
   });
@@ -58,9 +56,8 @@ module.exports = function (app) {
       const productBody = req.body;
       const addedProduct = await Product.addProduct(productBody);
       res.status(200).json({ success: true, message: "Product added successfully", data: addedProduct });
-      // console.log("Product added:", addedProduct);
+      
     } catch (error) {
-      console.error("Validation or DB error:", error.message);
       res.status(400).send({ success: false, message: error.message });
     }
   });
@@ -69,7 +66,6 @@ module.exports = function (app) {
     try {
       const productId = req.params.id;
       const productData = req.body;
-      console.log('productId'," ",productData);
       const result = await Product.updateProductStock(productId, productData);
       if (result) {
         res.status(200).json({ success: true });
@@ -77,7 +73,6 @@ module.exports = function (app) {
         res.status(400).json({ errors: "Error updating issue ID" });
       }
     } catch (error) {
-      console.error("Error:", error.message);
       res.status(500).send({ message: "Internal Server Error" });
     }
   });
@@ -87,22 +82,18 @@ module.exports = function (app) {
     try {
       const product = req.body;
       const productId = req.params.id;
-      // console.log('updateproductStock=>',productId,'  ',product);
 
       const requiredFields = ["total_buy_quantity", "available_stock"];
       const hasRequiredFields = requiredFields.every(field => field in product);
 
-      // console.log('hasRequiredFields',hasRequiredFields)
       
       const onlyStockUpdate = Object.keys(product).length === 1 || Object.keys(product).length === 2;
 
-      // const onlyStockUpdate = hasRequiredFields && hasOneOrTwoFields;
 
-      console.log('onlyStockUpdate=>',onlyStockUpdate);
 
       if (onlyStockUpdate) {
         const result = await Product.updateProductStock(productId, product);
-        // console.log('stock update result',result);
+     
         if (result) {
           res.status(200).json(result);
         } else {
@@ -110,7 +101,7 @@ module.exports = function (app) {
         }
       } else {
         const result = await Product.updateProduct(productId, product);
-        console.log('full update result',result);
+    
         if (result) {
           res.status(200).json({ success: true, message: "Product Update Successfully", result });
         } else {
@@ -118,7 +109,6 @@ module.exports = function (app) {
         }
       }
     } catch (error) {
-      // console.error("Update error:", error.message);
       res.status(400).json({ errors: error.message || "Unexpected error occurred" });
     }
   });
@@ -126,13 +116,8 @@ module.exports = function (app) {
   router.delete("/delete/:id",  fetchApi, async  (req, res)=> {
   const productId = req.params.id;
   try {
-    // Option 1: Manually delete related issues before deleting product
     let result = await db.query("UPDATE Products SET status = 'inactive' WHERE id = $1", [productId]);
-    // await Issue.issueDeletedById(productId);
-    
-    
-    // Now delete the product
-    // const result = await Product.deleteProduct(productId);
+
 
     if (result) {
       res.status(200).json({ message: "Product deleted successfully" });
@@ -140,7 +125,6 @@ module.exports = function (app) {
       res.status(400).json({ message: "Error deleting product" });
     }
   } catch (error) {
-    // console.error("Error:", error.message);
     res.status(500).send({ message: "Internal Server Error" });
   }
 });

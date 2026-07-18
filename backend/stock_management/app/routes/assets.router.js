@@ -9,12 +9,9 @@ module.exports = function (app) {
   router.get("/", fetchApi, async (_req, res) => {
     try {
       const data = await Assets.getAssets();
-      console.log(data);
-      
       if (!data.length) return res.status(404).json({ errors: "No data" });
       res.status(200).json(data);
     } catch (err) {
-      console.error(err);
       res.status(500).json({ errors: "Server error" });
     }
   });
@@ -25,7 +22,6 @@ module.exports = function (app) {
       if (!rows.length) return res.status(404).json({ errors: "Not found" });
       res.status(200).json(rows[0]);
     } catch (err) {
-      console.error(err);
       res.status(500).json({ errors: "Server error" });
     }
   });
@@ -33,14 +29,12 @@ module.exports = function (app) {
  
   router.post("/create",  fetchApi, async (req, res) => {
     try {
-      console.log('assets=>',req.body);
       const rows = await Assets.addAsset(req.body);
       res.status(201).json(rows[0]);
     } catch (err) {
       if (err.code === "23503") {
         return res.status(400).json({ errors: "Invalid foreign key" });
       }
-      console.error(err);
       res.status(500).json({ errors: "Server error" });
     }
   });
@@ -54,7 +48,6 @@ module.exports = function (app) {
       if (err.code === "23503") {
         return res.status(400).json({ errors: "Invalid foreign key" ,err});
       }
-      console.error(err);
       res.status(500).json({ errors: "Server error",err });
     }
    
@@ -62,12 +55,10 @@ module.exports = function (app) {
 
   router.delete("/delete/:id", fetchApi, async (req, res) => {
     try {
-        console.log(req.params.id);
       const rows = await Assets.deleteAsset(req.params.id);
       if (!rows.length) return res.status(404).json({ errors: "Not deleted" });
       res.status(200).json(rows[0]);
     } catch (err) {
-      console.error(err);
       res.status(500).json({ errors: "Server error" });
     }
   });
@@ -79,7 +70,6 @@ module.exports = function (app) {
         const rows = await Assets.assetReportQuarterly({ from, to });
         res.status(200).json({ data: rows });
     } catch (err) {
-        console.error(err);
         res.status(500).json({ errors: "Server error" });
     }
   });
@@ -102,7 +92,6 @@ module.exports = function (app) {
       });
       res.status(200).json({ data: result });
     } catch (err) {
-      console.error(err);
       res.status(500).json({ errors: "Server error" });
     }
   });

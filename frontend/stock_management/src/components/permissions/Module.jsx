@@ -20,7 +20,7 @@ import { AuthContext } from "../context/AuthProvider";
 
 export default function Module() {
   const { loginData } = useContext(AuthContext);
-  const [showAlert, setShowAlert] = useState(false);
+  const [, setShowAlert] = useState(false);
   const [modules, setModules] = useState([]);
   const [filterText, setFilterText] = useState("");
   const [filteredModules, setFilteredModules] = useState([]);
@@ -28,15 +28,18 @@ export default function Module() {
   const [showModal, setShowModal] = useState(false);
   const [isUpdate, setIsUpdate] = useState(false);
   const [selectedModule, setSelectedModule] = useState(null);
-
-  const primaryColor = "#5650ce";
+  const [showConfirmModel, ] = useState(() => async (message) => {
+    return new Promise((resolve) => {
+      const confirmed = window.confirm(message);
+      resolve(confirmed);
+    });
+  });
 
   const handleGetData = async () => {
     try {
       const result = await stockManagementApis.getModule();
       setModules(result);
     } catch (error) {
-      console.error("Error fetching modules:", error);
       setModules([]);
     }
   };
@@ -98,16 +101,14 @@ export default function Module() {
   }, [filterText, modules]);
 
   const deleteModule = async (id) => {
-    const isConfirmed = window.confirm(
-      "Are you sure you want to delete this record?"
-    );
+   
+    const isConfirmed = await showConfirmModel("Are you sure you want to delete this module?");
     if (isConfirmed) {
       try {
         await stockManagementApis.deleteModuleById(id);
         setModules((prevMods) => prevMods.filter((mdl) => mdl.id !== id));
         toast.success("Module deleted successfully");
       } catch (error) {
-        console.error("Error deleting module:", error);
         toast.error("Module could not be deleted");
       }
     } else {
@@ -150,7 +151,7 @@ export default function Module() {
             variant="outline-primary"
             className="btn-sm d-flex align-items-center justify-content-center"
             onClick={() => handleUpdateClick(row)}
-            style={{ width: "32px", height: "32px", borderColor: "#a3a6dd", color: primaryColor }}
+            style={{ width: "32px", height: "32px", borderColor: "#a3a6dd", color: "#5650ce" }}
           >
             <i className="fa-regular fa-edit" aria-hidden="true"></i>
           </Button>
@@ -196,14 +197,14 @@ export default function Module() {
   return (
     <Main>
       <div className="my-3 px-3" style={{ fontSize: "14px" }}>
-        <Link to="/Home" className="text-decoration-none" style={{ color: primaryColor }}>Home</Link>
+        <Link to="/Home" className="text-decoration-none" style={{ color: "#5650ce" }}>Home</Link>
         <span className="text-muted mx-2">/</span>
         <span className="text-muted">Modules</span>
       </div>
 
       <Container fluid className="px-3">
         <Card className="border-0 shadow-sm" style={{ borderRadius: "8px" }}>
-          {/* Header Section */}
+       
           <div className="d-flex justify-content-between align-items-center p-3 border-bottom flex-wrap gap-3">
             <div>
               <h5 className="mb-0 fw-normal">Module List</h5>
@@ -230,14 +231,13 @@ export default function Module() {
               <Button
                 className="px-3 border-0 d-flex align-items-center gap-2"
                 onClick={handleModalShow}
-                style={{ backgroundColor: primaryColor }}
+                style={{ backgroundColor: "#5650ce" }}
               >
                 <i className="fa fa-plus" aria-hidden="true"></i> Add Module
               </Button>
             </div>
           </div>
 
-          {/* Data Table Section */}
           <div className="p-0">
             <DataTable
               columns={columns}
@@ -250,7 +250,6 @@ export default function Module() {
           </div>
         </Card>
 
-        {/* Add/Edit Modal */}
         <Modal
           show={showModal}
           onHide={handleModalClose}
@@ -302,7 +301,7 @@ export default function Module() {
               <Button variant="secondary" onClick={handleModalClose}>
                 Close
               </Button>
-              <Button variant="primary" type="submit" style={{ backgroundColor: primaryColor, border: 'none' }}>
+              <Button variant="primary" type="submit" style={{ backgroundColor: "#5650ce", border: 'none' }}>
                 {isUpdate ? "Update Module" : "Add Module"}
               </Button>
             </Modal.Footer>

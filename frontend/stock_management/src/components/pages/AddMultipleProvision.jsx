@@ -61,7 +61,6 @@ const AddMultipleProvision = () => {
       }
       return await response.json();
     } catch (error) {
-      console.error("API error:", error);
       throw error;
     }
   };
@@ -95,21 +94,13 @@ const AddMultipleProvision = () => {
         );
       }
       } catch (err) {
-        console.error("Error loading data:", err);
+        throw err;
       } finally {
         setLoading(false);
       }
     };
     fetchData();
   }, [loginData?.id]);
-
-  // const handleChange = (index, field, value) => {
-  //   const updated = [...rows];
-  //   updated[index][field] = value;
-  //   if (field === "product") updated[index]["qty"] = "";
-  //   setRows(updated);
-  // };
-
 
   const handleChange = (index, field, value) => {
   const updated = [...rows];
@@ -118,10 +109,8 @@ const AddMultipleProvision = () => {
     const currentProductId = updated[index]["product"];
     const maxAvailable = availableQty(currentProductId);
     
-    // Convert input to a number for comparison
     const numValue = Number(value);
 
-    // If they type a number higher than available, cap it at maxAvailable
     if (numValue > maxAvailable) {
       updated[index][field] = maxAvailable.toString();
     } else {
@@ -129,7 +118,7 @@ const AddMultipleProvision = () => {
     }
   } else {
     updated[index][field] = value;
-    if (field === "product") updated[index]["qty"] = ""; // Reset qty on product change
+    if (field === "product") updated[index]["qty"] = ""; 
   }
 
   setRows(updated);
@@ -176,7 +165,6 @@ const AddMultipleProvision = () => {
         toast.error("Failed to add provisions.");
       }
     } catch (err) {
-      console.error(err);
       toast.error("Error submitting provisions.");
     } finally {
       setSubmitting(false);
@@ -271,7 +259,6 @@ const AddMultipleProvision = () => {
               </div>
             </div>
 
-            {/* Table */}
             <div style={{ overflowX: "auto", padding: "16px 20px 20px" }}>
               {loading ? (
                 <div style={{ textAlign: "center", padding: "48px 0", color: "#aaa" }}>
@@ -339,7 +326,6 @@ const AddMultipleProvision = () => {
                                 value={row.qty}
                                 min={1}
                                 max={avail}
-                                // Disables the field if no product is selected OR if the available quantity is 0 or less
                                 disabled={!row.product || avail <= 0} 
                                 onChange={(e) => handleChange(idx, "qty", e.target.value)}
                                 placeholder={avail <= 0 ? "N/A" : "0"}
@@ -408,7 +394,6 @@ const AddMultipleProvision = () => {
   );
 };
 
-// fix typo in variable name
 const cellStyle = {
   width: "100%",
   padding: "6px 10px",

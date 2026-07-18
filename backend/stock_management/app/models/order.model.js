@@ -50,7 +50,6 @@ async function getOrderByUserId(id) {
             WHERE users.id = $1`, [id]);
         return result.rows;
     } catch (error) {
-        console.error('Error getting order by user id', error);
         throw error;
     }
 }

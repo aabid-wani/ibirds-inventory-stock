@@ -49,7 +49,7 @@ export default function IssuedDetailPage() {
                 }));
             }
         } catch (error) {
-            console.error('Error fetching issue:', error);
+            throw new Error('Error fetching issue data:', error);
         }
     };
 
@@ -59,13 +59,12 @@ export default function IssuedDetailPage() {
             const returnData = Array.isArray(result) ? result : [];
             setReturns(returnData);
 
-            // Calculate totalReturns by summing up the quantities of all returns
             const totalReturnQuantity = returnData.reduce((sum, ret) => sum + parseInt(ret.quantity || 0, 10), 0);
             setTotalReturns(totalReturnQuantity);
         } catch (error) {
-            console.error('Error fetching return details:', error);
             setReturns([]);
             setTotalReturns(0);
+            throw new Error('Error fetching return details:', error);
         }
     };
 
@@ -90,7 +89,7 @@ export default function IssuedDetailPage() {
                 await stockManagementApis.updateProductById(productId, { total_issue_quantity: total_issue });
             }
         } catch (error) {
-            console.error('Error updating product stock:', error);
+            throw new Error('Error updating product stock:', error);
         }
     }; 
 
@@ -109,7 +108,7 @@ export default function IssuedDetailPage() {
                 quantity: updatedIssueQuantity
             });
         } catch (error) {
-            console.error('Error updating issue quantity:', error);
+            throw new Error('Error updating issue quantity:', error);
         }
     };
 
@@ -122,8 +121,8 @@ export default function IssuedDetailPage() {
             getReturnDetails();
             handleIssueData(id);
         } catch (error) {
-            console.error('Error updating return details:', error);
             toast.error('Failed to add return details.');
+            throw new Error('Error adding return data:', error);
         }
     };
 
@@ -160,7 +159,6 @@ export default function IssuedDetailPage() {
         <Main>
             <ToastContainer />
 
-            {/* ─── Breadcrumbs ─── */}
             <div className="my-3 px-3" style={{ fontSize: "14px" }}>
                 <Link to="/Home" className="text-decoration-none" style={{ color: primaryColor }}>Home</Link>
                 <span className="text-muted mx-2">/</span>
@@ -170,10 +168,8 @@ export default function IssuedDetailPage() {
             </div>
 
             <Container fluid className="px-3">
-                {/* ─── Provision Header & Details Card ─── */}
                 <Card className="border-0 shadow-sm p-4 mb-4" style={{ borderRadius: "12px" }}>
                     
-                    {/* Header Section */}
                     <div className="d-flex justify-content-between align-items-start mb-4 pb-3 border-bottom">
                         <div>
                             <div className="d-flex align-items-center gap-3 mb-2">
@@ -203,7 +199,6 @@ export default function IssuedDetailPage() {
                         </div>
                     </div>
 
-                    {/* Content Section */}
                     <Row className="g-4">
                         <Col md={6}>
                             <Card className="border-0 h-100" style={{ backgroundColor: "#f8f9fa", borderRadius: "10px" }}>
@@ -246,7 +241,6 @@ export default function IssuedDetailPage() {
                     </Row>
                 </Card>
 
-                {/* ─── Related Transactions (Returns) ─── */}
                 <Card className="border-0 shadow-sm mb-4" style={{ borderRadius: "12px", overflow: "hidden" }}>
                     <div className="bg-light p-3 border-bottom d-flex justify-content-between align-items-center">
                         <h6 className="mb-0 fw-bold text-uppercase text-muted" style={{ fontSize: "14px", letterSpacing: "1px" }}>Related Returns</h6>
@@ -301,7 +295,6 @@ export default function IssuedDetailPage() {
                 </Card>
             </Container>
 
-            {/* ─── Add Return Modal ─── */}
             <Modal show={show} onHide={handleClose} backdrop="static" size="lg">
                 <Form noValidate validated={validated} onSubmit={handleSubmit}>
                     <Modal.Header closeButton>
@@ -345,10 +338,11 @@ export default function IssuedDetailPage() {
                                                     handleInputChange(e);
                                                 } else {
                                                     e.target.disabled = true;
-                                                    setTimeout(() => {
+                                                  const timer =  setTimeout(() => {
                                                         e.target.disabled = false;
                                                         e.target.value = returnDetails.quantity;
                                                     }, 500);
+                                                    return () => clearTimeout(timer);
                                                 }
                                             }}
                                             required

@@ -19,7 +19,6 @@ async function getEmployeeById(id) {
 }
 
 async function addEmployee(employee) {
-     console.log('Employee Data ',employee);
     try {
         const query = `
             INSERT INTO public.employees (name, department, status, created_by)
@@ -32,7 +31,6 @@ async function addEmployee(employee) {
             employee.created_by || null
         ];
         const result = await db.query(query, values);
-        // console.log(result);
         return result.rows;
     } catch (error) {
         throw error;
@@ -40,7 +38,6 @@ async function addEmployee(employee) {
 }
 
 async function updateEmployee(id, employee) {
-    // console.log('employee update =>', id,"  ",employee)
     try {
         const query = `
             UPDATE public.employees
@@ -70,12 +67,9 @@ async function deleteEmployee(id) {
     const result = await db.query(
       `DELETE FROM public.employees WHERE id = $1 RETURNING*`, [id]
     );
-    // console.log("Delete result:", result.rows);  // Logging the result
-    // If the result is an empty array, that means no rows were deleted
-    return result.rows;  // An empty array means no employee was found to delete
+    return result.rows;  
   } catch (error) {
-    console.error("Error during delete operation:", error);  // Log the full error
-    throw error;  // Propagate the error
+    throw error;  
   }
 }
 

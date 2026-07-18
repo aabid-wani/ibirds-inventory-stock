@@ -114,7 +114,6 @@ async function addOrderLineItemsImproved(orderLineItems) {
 async function updateOrderLineItemQuantity(id, orderLineItem) {
     const isArray = Array.isArray(orderLineItem);
     const item = isArray ? orderLineItem[0] : orderLineItem;
-    console.log('update order line item ', id, item);
     try {
         const result = await connection.query(
             'UPDATE public.order_line_item SET  price=$1, quantity=$2 WHERE order_id=$3 RETURNING *',
@@ -122,7 +121,6 @@ async function updateOrderLineItemQuantity(id, orderLineItem) {
         );
         return result.rows[0];
     } catch (error) {
-        console.error('Error updating order line item:', error);
         throw error;
     }
 }
@@ -142,7 +140,6 @@ async function updateOrderLineItem(id, orderLineItem) {
         // console.log('update order line item', result.rowCount, result.rows[0]);
         return result.rows[0];
     } catch (error) {
-        console.error('Error updating order line item:', error);
         throw error;
     }
 }

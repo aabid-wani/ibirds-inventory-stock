@@ -41,7 +41,7 @@ const MonthlyReport = () => {
           const response = await Apis.getMonthlyReports(selectedMonth);
           setMonthlyReportData(response || []);
         } catch (err) {
-          console.error("Error fetching monthly report:", err);
+          throw err;
         }
       };
       fetchData();
@@ -56,13 +56,12 @@ const MonthlyReport = () => {
       setModalData(response || []);
       setShowModal(true);
     } catch (error) {
-      console.error("Error fetching day-wise employee data:", error);
+      throw error;
     }
   };
 
   const downloadMonthlyExcel = () => {
     if (!monthlyReportData.length) {
-      alert("No monthly report data to download.");
       return;
     }
 
@@ -228,14 +227,13 @@ const MonthlyReport = () => {
                           <th style={{ backgroundColor: "inherit", color: "inherit", fontWeight: "600", padding: "12px", border: "1px solid #343a40" }}>Product</th>
                           <th className="text-center" style={{ backgroundColor: "inherit", color: "inherit", fontWeight: "600", padding: "12px", border: "1px solid #343a40" }}>Opening</th>
                           
-                          {/* COLUMN HEADERS - WITH DAY CHECK */}
                           {Array.from({ length: daysInMonth }, (_, i) => {
                             const currentDate = new Date(parseInt(y), parseInt(m) - 1, i + 1);
-                            const dayOfWeek = currentDate.getDay(); // 0 is Sunday, 6 is Saturday
+                            const dayOfWeek = currentDate.getDay();
 
                             let headerBg = "inherit"; 
-                            if (dayOfWeek === 0) headerBg = "#dc3545"; // Sunday (Solid Red)
-                            if (dayOfWeek === 6) headerBg = "#198754"; // Saturday (Solid Green)
+                            if (dayOfWeek === 0) headerBg = "#dc3545"; 
+                            if (dayOfWeek === 6) headerBg = "#198754"; 
 
                             return (
                               <th 
@@ -264,22 +262,19 @@ const MonthlyReport = () => {
                             <td className="fw-medium px-3 text-dark bg-light" style={{ position: "sticky", left: 0, zIndex: 1 }}>{item.product}</td>
                             <td className="text-center fw-medium text-muted bg-light">{item.opening_stock}</td>
                             
-                            {/* TABLE CELLS - WITH DAY CHECK */}
                             {item.daily.slice(0, daysInMonth).map((value, i) => {
                               const isClickable = value && parseInt(value) > 0;
                               
                               const currentDate = new Date(parseInt(y), parseInt(m) - 1, i + 1);
                               const dayOfWeek = currentDate.getDay();
                             
-                              // Base background
                               let cellBg = isClickable ? "rgba(165, 109, 59, 0.08)" : "inherit";
                               
-                              // Apply weekend background colors with opacity for readability
                               if (dayOfWeek === 0) {
-                                // Sunday (Light Red)
+                                
                                 cellBg = isClickable ? "rgba(242, 0, 24, 0.25)" : "rgba(237, 29, 50, 0.1)"; 
                               } else if (dayOfWeek === 6) {
-                                // Saturday (Light Green)
+                               
                                 cellBg = isClickable ? "rgba(25, 135, 84, 0.25)" : "rgba(25, 135, 84, 0.1)";
                               }
 

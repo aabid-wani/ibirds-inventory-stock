@@ -10,7 +10,7 @@ import "react-toastify/dist/ReactToastify.css";
 
 export default function ProductDetailPage() {
     const { id } = useParams();
-    const { permissions, useNotification, addNotification } = useContext(AuthContext);
+    const { permissions, addNotification } = useContext(AuthContext);
     const [category, setCategory] = useState([]);
     const [totalStock, setTotalStock] = useState(0);
     const [product, setProduct] = useState({
@@ -26,7 +26,7 @@ export default function ProductDetailPage() {
         id: ""
     });
 
-    const [productCategory, setProductCategory] = useState({
+    const [, setProductCategory] = useState({
         name: "",
         status: false,
         id: ""
@@ -50,7 +50,7 @@ export default function ProductDetailPage() {
                 addNotification(`Low stock alert for "${result[0].name}" — only ${total} left`);
             }
         } catch (error) {
-            console.error('Error fetching product:', error);
+            throw new Error("Error fetching product data:", error);
         }
     };
 
@@ -60,7 +60,7 @@ export default function ProductDetailPage() {
             setCategory(await stockManagementApis.getProductCategory());
             setProductCategory(result[0]);
         } catch (error) {
-            console.error('Error fetching product category:', error);
+            throw new Error("Error fetching category data:", error);
         }
     };
 
@@ -96,7 +96,6 @@ export default function ProductDetailPage() {
             handleProductData(product.id);
         } catch (error) {
             toast.error('Product not updated successfully');
-            console.error('Error updating product:', error);
         }
     };
 
@@ -127,7 +126,7 @@ export default function ProductDetailPage() {
             <Container fluid className="px-3">
                 <Card className="border-0 shadow-sm p-4" style={{ borderRadius: "12px" }}>
                     
-                    {/* Header Section */}
+
                     <div className="d-flex justify-content-between align-items-start mb-4 pb-3 border-bottom">
                         <div>
                             <div className="d-flex align-items-center gap-3 mb-2">
@@ -166,10 +165,7 @@ export default function ProductDetailPage() {
                             </Link>
                         </div>
                     </div>
-
-                    {/* Content Section */}
                     <Row className="g-4">
-                        {/* Basic Info Column */}
                         <Col md={6}>
                             <Card className="border-0 h-100" style={{ backgroundColor: "#f8f9fa", borderRadius: "10px" }}>
                                 <Card.Body className="p-4">
@@ -183,7 +179,6 @@ export default function ProductDetailPage() {
                             </Card>
                         </Col>
 
-                        {/* Inventory Info Column */}
                         <Col md={6}>
                             <Card className="border-0 h-100" style={{ backgroundColor: "#f8f9fa", borderRadius: "10px" }}>
                                 <Card.Body className="p-4">
@@ -219,7 +214,6 @@ export default function ProductDetailPage() {
                 </Card>
             </Container>
 
-            {/* Edit Modal */}
             <Modal show={showEditModal} onHide={() => setShowEditModal(false)} backdrop="static" size="lg">
                 <Form onSubmit={handleSaveChanges}>
                     <Modal.Header closeButton>

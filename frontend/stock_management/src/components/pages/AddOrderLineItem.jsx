@@ -32,7 +32,7 @@ export default function AddOrderLineItem() {
                         setValue(key, value);
                     }
                 } catch (error) {
-                    console.error('Error fetching Order line item data:', error);
+                    throw error;
                 }
             }
         };
@@ -48,9 +48,8 @@ export default function AddOrderLineItem() {
                 await stockManagementApis.postOrder(data);
                 setMessage('Order added successfully');
             }
-            reset(); // Reset form after submission
+            reset(); 
         } catch (error) {
-            console.error('Error submitting data:', error);
             setMessage('Error submitting data');
         }
     };
@@ -61,7 +60,7 @@ export default function AddOrderLineItem() {
                 const orderData = await stockManagementApis.getOrder();
                 setOrder(orderData);
             } catch (error) {
-                console.error('Error fetching order Data:', error);
+                throw new Error('Error fetching order Data:', error);
             }
         };
         fetchOrderData();
@@ -72,8 +71,8 @@ export default function AddOrderLineItem() {
             try {
                 const productData = await stockManagementApis.getProduct();
                 setProduct(productData);
-            } catch (error) {
-                console.error('Error fetching product Data:', error);
+                } catch (error) {
+                    throw new Error('Error fetching product Data:', error);
             }
         };
         fetchProductData();

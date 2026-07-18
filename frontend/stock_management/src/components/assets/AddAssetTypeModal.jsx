@@ -2,15 +2,12 @@ import { Modal, Form, Button, Row, Col } from "react-bootstrap";
 import { useState } from "react";
 import stockManagementApis from "../apis/StockManagementApis";
 
-/**
- * A simple child‑modal that lets the user create a new location.
- * After the row is successfully saved, it calls `onSaved(newRow)`.
- */
+
 export default function AddAssetTypeModal({ show, onHide, onSaved }) {
   const [assetType, setAssetType] = useState({
     name: "", asset_code: "", is_movable: true, description: ""
   });
-  const [saving, setSaving]   = useState(false);
+  const [, setSaving]   = useState(false);
 
 
   const handleInputChange = ({ target: { name, value, type, checked } }) =>

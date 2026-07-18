@@ -45,7 +45,7 @@ export default function UserDetailPage() {
       const result = await stockManagementApis.getOrderByUserId(userId);
       setOrder(result);
     } catch (error) {
-      console.error("Order not fetched:", error);
+      throw new Error("Error fetching orders for user");
     }
   };
 
@@ -55,7 +55,7 @@ export default function UserDetailPage() {
       setUser(result[0]);
       setEditUserData(result[0]);
     } catch (error) {
-      console.error("User not fetched:", error);
+      throw new Error("Error fetching user data");
     }
   };
 
@@ -78,8 +78,7 @@ export default function UserDetailPage() {
       toast.success("User updated successfully");
       handleUserData(user.id);
     } catch (error) {
-      toast.error("Error updating user");
-      console.error("Error updating user:", error);
+      throw new Error("Error updating user data");
     }
   };
 

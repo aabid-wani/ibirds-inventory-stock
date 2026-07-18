@@ -13,7 +13,6 @@ module.exports = function (app) {
         res.status(404).json({ errors: "No data found" });
       }
     } catch (error) {
-      console.error(error);
       res.status(500).json({ errors: "Internal Server Error" });
     }
   });
@@ -28,7 +27,6 @@ module.exports = function (app) {
             res.status(404).json({ errors: "No product category found" });
         }
     } catch (error) {
-        console.error(error);
         res.status(500).json({ errors: "Internal Server Error" });
     }
   });
@@ -37,7 +35,6 @@ module.exports = function (app) {
      try {
       const product = req.body;
       const result = await prdCategory.addProductCategory(product);
-      // console.log("result", result);
       if (result) {
         res.status(201).json({
             success: true,
@@ -50,7 +47,6 @@ module.exports = function (app) {
         throw error;
       }
     } catch (error) {
-        console.error("Error adding product category:", error);
         res.status(error.status || 500).json({ errors: error.message || "Internal Server Error" });
     }
   });
@@ -69,7 +65,6 @@ module.exports = function (app) {
         res.status(400).json({ errors: "Error updating product category" });
       }
     } catch (error) {
-      console.error("Error Updating product category:", error);
       res
         .status(error.status || 500)
         .json({ errors: error.message || "Internal Server Error" });
@@ -86,7 +81,6 @@ module.exports = function (app) {
             res.status(400).json({errors : "Error deleting product category"});
         }
     } catch (error) {
-        console.error("Error deleting product category:", error);
         res.status(error.status || 500).json({errors : error.message || "Internal Server Error"});
     }
   });

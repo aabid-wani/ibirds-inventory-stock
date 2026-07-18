@@ -25,8 +25,8 @@ export default function CreatePermission() {
             setPermission(result);
             // console.log('Permission fetched:', result);
         } catch (error) {
-            console.error('Error fetching Permission:', error);
             setPermission([]);
+            throw new Error('Error fetching permission data');
         }
     };
 
@@ -53,7 +53,7 @@ export default function CreatePermission() {
             const rolesData = await stockManagementApis.getRoles();
             setRole(rolesData);
           } catch (error) {
-            console.error('Error fetching roles:', error);
+            throw new Error('Error fetching roles data');
           }
         };
         fetchRoles();
@@ -174,7 +174,6 @@ export default function CreatePermission() {
                                         <Form.Label>Role</Form.Label>
                                         <Form.Control
                                             as="select"
-                                            // {...register ('role_id', { required: 'Role is required' })}
                                         >
                                             <option value="">Select a role</option>
                                             {role.map((role) => (
@@ -183,7 +182,6 @@ export default function CreatePermission() {
                                                 </option>
                                             ))}
                                         </Form.Control>
-                                        {/* {errors.role_id && <span className="text-danger">{errors.role_id.message}</span>} */}
                                     </Form.Group>
                                 </Col>
                                 <Col>
@@ -191,7 +189,6 @@ export default function CreatePermission() {
                                         <Form.Label>Module</Form.Label>
                                         <Form.Control
                                             as="select"
-                                            // {...register ('role_id', { required: 'Role is required' })}
                                         >
                                             <option value="">Select a Module</option>
                                             {role.map((role) => (
@@ -200,7 +197,6 @@ export default function CreatePermission() {
                                                 </option>
                                             ))}
                                         </Form.Control>
-                                        {/* {errors.role_id && <span className="text-danger">{errors.role_id.message}</span>} */}
                                     </Form.Group>
                                 </Col>
                                 <Col>

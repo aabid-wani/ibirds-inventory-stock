@@ -13,26 +13,17 @@ import AddLocationModal from "./AddLocationModal";
 import AddAssetTypeModal from "./AddAssetTypeModal";
 
 export default function Assets() {
-  /* ──────────────────────────────────────────────────────────
-   * constants & lookup data
-   * ───────────────────────────────────────────────────────── */
   const ADD_NEW  = "ADD_NEW";
   const ADD_ASSET_TYPE  = "ADD_ASSET_TYPE";
 
   const [locations, setLocations] = useState([]);
   const [types,     setTypes]     = useState([]);
 
-  /* ──────────────────────────────────────────────────────────
-   * table + search + filters
-   * ───────────────────────────────────────────────────────── */
   const [assets,         setAssets]         = useState([]);
   const [filteredAssets, setFilteredAssets] = useState([]);
   const [filterText,     setFilterText]     = useState("");
-  const [mobilityFilter, setMobilityFilter] = useState("all"); // all | Yes | No
+  const [mobilityFilter, setMobilityFilter] = useState("all"); 
 
-  /* ──────────────────────────────────────────────────────────
-   * CRUD modal state
-   * ───────────────────────────────────────────────────────── */
   const [showAssetModal, setShowAssetModal] = useState(false);
   const [isUpdate,       setIsUpdate]       = useState(false);
   const [selected,       setSelected]       = useState(null);
@@ -43,15 +34,11 @@ export default function Assets() {
     remarks:      "", unit_cost:0
   });
 
-  /* child “add‑location” modal */
   const [showAddLocModal, setShowAddLocModal] = useState(false);
   const [showAddAssetTypeModal, setShowAddAssetTypeModal] = useState(false);
 
   const primaryColor = "#5650ce";
 
-  /* ──────────────────────────────────────────────────────────
-   * helpers
-   * ───────────────────────────────────────────────────────── */
   const openAssetModal  = () => setShowAssetModal(true);
   const closeAssetModal = () => {
     setShowAssetModal(false);
@@ -65,17 +52,14 @@ export default function Assets() {
     });
   };
 
-  /** handle every change in the asset‑form */
   const handleInput = (e) => {
     const { name, value } = e.target;
 
-    // user chose “Add Location…”
     if (name === "location_id" && value === ADD_NEW) {
       setShowAddLocModal(true);
       return;
     }
-    
-    // user chose “Add Asset Type...”
+
     if (name === "asset_type_id" && value === ADD_ASSET_TYPE) {
       setShowAddAssetTypeModal(true);
       return;
@@ -83,7 +67,6 @@ export default function Assets() {
     setForm((prev) => ({ ...prev, [name]: value }));
   };
 
-  /** save asset */
   const handleSubmit = async (e) => {
     e.preventDefault();
     try {
@@ -97,7 +80,6 @@ export default function Assets() {
       closeAssetModal();
       fetchAssets();
     } catch (err) {
-      console.error(err);
       toast.error("Error saving asset");
     }
   };
@@ -124,14 +106,10 @@ export default function Assets() {
       setAssets((prev) => prev.filter((a) => a.id !== id));
       toast.success("Asset deleted successfully");
     } catch (err) {
-      console.error(err);
       toast.error("Error deleting asset");
     }
   };
 
-  /* ──────────────────────────────────────────────────────────
-   * data‑loading
-   * ───────────────────────────────────────────────────────── */
   const fetchAssets = async () => {
     const data = await stockManagementApis.getAssets();
     setAssets(data);
@@ -148,9 +126,6 @@ export default function Assets() {
     fetchLookups(); 
   }, []);
 
-  /* ──────────────────────────────────────────────────────────
-   * search & mobility filter
-   * ───────────────────────────────────────────────────────── */
   useEffect(() => {
     const q = filterText.toLowerCase();
     setFilteredAssets(
@@ -170,9 +145,6 @@ export default function Assets() {
     );
   }, [filterText, mobilityFilter, assets]);
 
-  /* ──────────────────────────────────────────────────────────
-   * after modals save a row
-   * ───────────────────────────────────────────────────────── */
   const handleLocationSaved = (newLoc) => {
     fetchLookups();
   };
@@ -181,9 +153,6 @@ export default function Assets() {
     fetchLookups();
   }
 
-  /* ──────────────────────────────────────────────────────────
-   * datatable
-   * ───────────────────────────────────────────────────────── */
   const cols = [
     { name: "S.No.",    selector: (_, i) => i + 1, width: "80px" },
     { name: "Type",     selector: (r) => r.asset_type_name, sortable: true, width: "140px" },
@@ -248,9 +217,6 @@ export default function Assets() {
     },
   };
 
-  /* ──────────────────────────────────────────────────────────
-   * UI
-   * ───────────────────────────────────────────────────────── */
   return (
     <Main>
       <div className="my-3 px-3" style={{ fontSize: "14px" }}>
@@ -261,7 +227,7 @@ export default function Assets() {
 
       <Container fluid className="px-3">
         <Card className="border-0 shadow-sm" style={{ borderRadius: "8px" }}>
-          {/* Header Section */}
+          
           <div className="d-flex justify-content-between align-items-center p-3 border-bottom flex-wrap gap-3">
             <div>
               <h5 className="mb-0 fw-normal">Asset List</h5>
@@ -306,7 +272,6 @@ export default function Assets() {
             </div>
           </div>
 
-          {/* Data Table Section */}
           <div className="p-0">
             <DataTable
               columns={cols}
@@ -319,7 +284,6 @@ export default function Assets() {
           </div>
         </Card>
 
-        {/* Asset Modal */}
         <Modal
           show={showAssetModal}
           onHide={closeAssetModal}
@@ -335,7 +299,6 @@ export default function Assets() {
             <Modal.Body className="p-4">
               <Container>
                 <Row>
-                  {/* Location Select */}
                   <Col md={6}>
                     <Form.Group className="mb-4">
                       <Form.Label className="text-muted" style={{ fontSize: "13px" }}>Location</Form.Label>
@@ -362,7 +325,6 @@ export default function Assets() {
                     </Form.Group>
                   </Col>
 
-                  {/* Asset Type Select */}
                   <Col md={6}>
                     <Form.Group className="mb-4">
                       <Form.Label className="text-muted" style={{ fontSize: "13px" }}>Asset Type</Form.Label>
@@ -473,14 +435,12 @@ export default function Assets() {
 
         <ToastContainer />
 
-        {/* Child Modal for Adding Location */}
         <AddLocationModal
           show={showAddLocModal}
           onHide={() => setShowAddLocModal(false)}
           onSaved={handleLocationSaved}
         />
 
-        {/* Child Modal for Adding Asset Type */}
         <AddAssetTypeModal
           show={showAddAssetTypeModal}
           onHide={() => setShowAddAssetTypeModal(false)}

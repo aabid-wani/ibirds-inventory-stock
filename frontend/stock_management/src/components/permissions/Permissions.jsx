@@ -110,7 +110,6 @@ const Permissions = () => {
         toast.error('All permission updates failed');
       }
     } catch (error) {
-      console.error('Error saving permissions:', error);
       toast.error('Failed to save permissions');
     }
   };

@@ -35,7 +35,6 @@ export default function Order() {
         setUser(userData);
         setVendor(vendorData);
       } catch (error) {
-        console.error('Error fetching Vendor:', error);
         setVendor([]);
         setUser([]);
         setBranches([]);
@@ -50,8 +49,8 @@ export default function Order() {
       setOrder(result);
       setFilteredOrders(result);
     } catch (error) {
-      console.error('Error fetching order:', error);
       setOrder([]);
+      throw new Error("Error fetching orders");
     }
   };
 
@@ -113,8 +112,7 @@ export default function Order() {
       setShowModal(false);
       setSelectedOrder(null);
     } catch (error) {
-      console.error('Error updating order:', error);
-      toast.error('An error occurred during update');
+      throw new Error("Error updating order");
     }
   };
 
@@ -214,7 +212,6 @@ export default function Order() {
 
       <Container fluid className="px-3">
         <Card className="border-0 shadow-sm" style={{ borderRadius: '8px' }}>
-          {/* Header Section */}
           <div className="d-flex justify-content-between align-items-center p-3 border-bottom flex-wrap gap-3">
             <div>
               <h5 className="mb-0 fw-normal">Order List</h5>
@@ -256,8 +253,6 @@ export default function Order() {
               )}
             </div>
           </div>
-
-          {/* Data Table Section */}
           <div className="p-0">
             <DataTable
               columns={columns}
@@ -271,7 +266,6 @@ export default function Order() {
         </Card>
       </Container>
 
-      {/* Edit Modal */}
       <Modal show={showModal} onHide={handleCloseModal} backdrop="static" size="lg">
         <Modal.Header closeButton>
           <Modal.Title>Update Order</Modal.Title>

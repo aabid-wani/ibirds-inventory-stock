@@ -37,7 +37,6 @@ module.exports = function(app) {
             const result = await Employee.addEmployee(req.body);
             res.status(201).json(result);
         } catch (error) {
-            console.error('Error adding employee:', error);
             res.status(500).json({ errors: "Error adding employee", details: error.message });
         }
     });
@@ -66,7 +65,6 @@ module.exports = function(app) {
             res.status(400).json({ message: "Error deleting employee: Employee not found" });
             }
         } catch (error) {
-            console.error("Error deleting employee:", error);
             res.status(500).json({ message: "Internal Server Error", error: error.message });
         }
     });

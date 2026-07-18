@@ -61,8 +61,8 @@ export default function Product() {
       setCategory(categoryData);
       setFilteredProduct(productData);
     } catch (e) {
-      console.error("Error fetching product:", e);
       setProduct([]);
+      throw new Error("Error fetching data: " + e.message);
     }
   };
 
@@ -116,7 +116,6 @@ export default function Product() {
       toast.success('Successfully toggled status');
       handleGetData();
     } catch (e) {
-      console.error(e);
       toast.error('Error deleting record');
     }
   };
@@ -138,7 +137,6 @@ export default function Product() {
       setSelectedRows([]);
       handleGetData();
     } catch (error) {
-      console.error("Bulk delete error:", error);
       toast.error("An error occurred while modifying selected records.");
     }
   };
@@ -488,10 +486,11 @@ export default function Product() {
                               handleInputChange(e);
                             } else {
                               e.target.disabled = true;
-                              setTimeout(() => {
+                                    const timer = setTimeout(() => {
                                 e.target.disabled = false;
                                 e.target.value = "";
                               }, 500);
+                              return () => clearTimeout(timer);
                             }
                           }}
                           required

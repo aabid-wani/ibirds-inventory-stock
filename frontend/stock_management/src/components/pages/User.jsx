@@ -18,9 +18,10 @@ import "../../App.css";
 import { AuthContext } from "../context/AuthProvider";
 import { ToastContainer, toast } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
+import '../../App.jsx'
 
 export default function User() {
-  const [showAlert, setShowAlert] = useState(false);
+  const [, setShowAlert] = useState(false);
   const [user, setUser] = useState([]);
   const [filterText, setFilterText] = useState("");
   const [filteredCategories, setFilteredCategories] = useState([]);
@@ -28,11 +29,11 @@ export default function User() {
   const [isUpdate, setIsUpdate] = useState(false);
   const [roles, setRoles] = useState([]);
   const [branches, setBranches] = useState([]);
-  const [password, setPassword] = useState("");
+  const [, setPassword] = useState("");
   const [isPasswordVisible, setIsPasswordVisible] = useState(false);
   const [contactError, setContactError] = useState(false);
   const [validated, setValidated] = useState(false);
-  const [isValid, setIsValid] = useState(true);
+  const [, setIsValid] = useState(true);
   const navigate = useNavigate();
   const { permissions, loginData } = useContext(AuthContext);
 
@@ -107,7 +108,7 @@ export default function User() {
         setRoles(rolesData);
         setBranches(branchData);
       } catch (error) {
-        console.error("Error fetching roles:", error);
+        throw error
       }
     };
     fetchRoles();
@@ -204,14 +205,15 @@ export default function User() {
         } else {
           toast.error("Failed to add user");
         }
-        setTimeout(() => {
+        const timer = setTimeout(() => {
           if (result.result?.id) navigate(`/userDetailPage/${result.result.id}`);
         }, 2000);
+        return () => clearTimeout(timer);
       }
       handleModalClose();
       handleGetData();
     } catch (error) {
-      console.error("Error submitting form:", error);
+      throw error
     }
   };
 
@@ -227,8 +229,8 @@ export default function User() {
       setUser(result);
       setFilteredCategories(result);
     } catch (error) {
-      console.error("Error fetching user:", error);
       setUser([]);
+      throw error
     }
   };
 
@@ -244,9 +246,9 @@ export default function User() {
         toast.success('Successfully deleted record');
         setUser((prevOrders) => prevOrders.filter((ord) => ord.id !== id));
       } catch (error) {
-        console.error('Error deleting record:', error);
         toast.error('Error deleting record');
         setShowAlert(true);
+        throw error
       }
     } else {
       setShowAlert(true);
@@ -351,7 +353,7 @@ export default function User() {
 
       <Container fluid className="px-3">
         <Card className="border-0 shadow-sm" style={{ borderRadius: '8px' }}>
-          {/* Header Section */}
+          
           <div className="d-flex justify-content-between align-items-center p-3 border-bottom flex-wrap gap-3">
             <div>
               <h5 className="mb-0 fw-normal">User List</h5>
@@ -387,7 +389,6 @@ export default function User() {
             </div>
           </div>
 
-          {/* Data Table Section */}
           <div className="p-0">
             <DataTable
               columns={columns}
@@ -400,7 +401,7 @@ export default function User() {
           </div>
         </Card>
 
-        {/* Add/Edit Modal */}
+        
         <Modal
           show={showModal}
           onHide={handleModalClose}

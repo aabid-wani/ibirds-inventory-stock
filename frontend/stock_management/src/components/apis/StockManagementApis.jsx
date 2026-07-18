@@ -2,10 +2,10 @@ import { API_BASE_URL } from '../CONSTANT/CONSTANT';
 
 // Generic fetch with Bearer token and error handling
 const fetchWithToken = async (url, options = {}) => {
-  console.log("Fetching URL:", url, 'options ' ,options);
+  // console.log("Fetching URL:", url, 'options ' ,options);
 
   const token = sessionStorage.getItem('token');
-  console.log("Using Token:", token);
+  // console.log("Using Token:", token);
 
   const headers = {
     'Content-Type': 'application/json',
@@ -14,7 +14,7 @@ const fetchWithToken = async (url, options = {}) => {
   };
 
   try {
-    console.log("Headers:", headers, 'options ' ,options);
+    // console.log("Headers:", headers, 'options ' ,options);
     const response = await fetch(url, { ...options, headers });
 
     // Parse body ONCE (some endpoints may return empty body)
@@ -24,12 +24,10 @@ const fetchWithToken = async (url, options = {}) => {
 
     if (isJson) {
       data = await response.json();
-      console.log("Response Data:", data);
     } else {
       // e.g., empty body or plain text
       const text = await response.text().catch(() => '');
       data = text ? text : null;
-      console.log("Response Data (non-json):", data);
     }
 
     if (!response.ok) {
@@ -40,8 +38,7 @@ const fetchWithToken = async (url, options = {}) => {
 
     return data;
   } catch (error) {
-    console.error('API error:', error);
-    throw error;
+    throw new Error(`Fetch error: ${error.message}`);
   }
 };
 
@@ -353,6 +350,9 @@ const stockManagementApis = {
     const url = `${API_BASE_URL}/assets/list/quarterly?${params}`;
     return fetchWithToken(url);
   },
+
+  getLowStockProducts: async () => fetchWithToken(`${API_BASE_URL}/product/lowStock`),
+
 };
 
 export default stockManagementApis;

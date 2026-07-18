@@ -13,7 +13,6 @@ module.exports = function(app) {
                 res.status(404).json({errors : "No issues found"});
             }
         } catch (error) {
-            console.error(error);
             res.status(500).json({errors : "Internal Server Error"});
         }
     });
@@ -28,7 +27,6 @@ module.exports = function(app) {
                 res.status(404).json({errors : "Issue not found"});
             }
         } catch (error) {
-            console.error(error);
             res.status(500).json({errors : "Internal Server Error"});
         }
     })
@@ -43,7 +41,6 @@ module.exports = function(app) {
                 res.status(400).json({errors : "Error adding issue"});
             }
          } catch (error) {
-            console.error(error);
             res.status(500).json({errors : "Internal Server Error"});
          }
     });
@@ -60,7 +57,6 @@ module.exports = function(app) {
             await Issue.insertBulkProvisions(provisions);
             res.status(200).json({ message: "Bulk insert successful", success: true });
         } catch (error) {
-            console.error("Bulk insert error:", error);
             res.status(500).json({ error: "Failed to insert provisions" });
         }
     });
@@ -76,7 +72,6 @@ module.exports = function(app) {
                 res.status(400).json({ errors: "Error updating issue quantity" });
             }
         } catch (error) {
-            console.error(error);
             res.status(500).json({ errors: "Internal Server Error" });
         }
     })
@@ -94,7 +89,6 @@ module.exports = function(app) {
                 res.status(400).json({ errors: "Error updating issue ID" });
             }
         } catch (error) {
-            console.error(error);
             res.status(500).json({ errors: "Internal Server Error" });
         }
     });
@@ -109,7 +103,6 @@ module.exports = function(app) {
                 res.status(400).json({ errors: "Error deleting issue ID" });
             }
         } catch (error) {
-            console.error(error);
             res.status(500).json({ errors: "Internal Server Error" });
         }
     });

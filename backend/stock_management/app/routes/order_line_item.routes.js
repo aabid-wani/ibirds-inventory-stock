@@ -32,7 +32,6 @@ module.exports = function (app) {
     router.post('/', async (req, res) => {
         try {
             const orderLineItem = req.body;
-            console.warn(orderLineItem);
             const result = await OrderLineItem.addOrderLineItems(orderLineItem);
             if (result) {
                 res.status(201).json(result);

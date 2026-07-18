@@ -18,7 +18,6 @@ export default function OrderLineItem() {
       setFilteredCategories(result);
       // console.log('order line item fetched:', result);
     } catch (error) {
-      console.error('Error fetching order line item:', error);
       setOrderLineItem([]);
     }
   };

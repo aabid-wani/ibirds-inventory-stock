@@ -1,13 +1,11 @@
-import React, { useContext, useEffect, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import stockManagementApis from '../apis/StockManagementApis';
 import 'bootstrap/dist/css/bootstrap.min.css';
-import { Breadcrumb, Card, Container, Form, Table } from 'react-bootstrap';
+import { Card, Container, Form, Table } from 'react-bootstrap';
 import Main from '../layout/Main';
-import { AuthContext } from '../context/AuthProvider';
 
 function InventoryReport() {
-  const { permissions } = useContext(AuthContext);
   const currentYear = new Date().getFullYear();
   const [year, setYear] = useState(currentYear);
   const [report, setReport] = useState([]);
@@ -19,8 +17,8 @@ function InventoryReport() {
       let result = await stockManagementApis.getInventoryReport(selectedYear);
       setReport(result);
     } catch (err) {
-      console.error('Error fetching report:', err);
       setReport([]);
+      throw err;
     }
   };
 
@@ -38,7 +36,7 @@ function InventoryReport() {
 
       <Container fluid className="px-3">
         <Card className="border-0 shadow-sm" style={{ borderRadius: "8px" }}>
-          {/* Header Section */}
+      
           <div className="d-flex justify-content-between align-items-center p-3 border-bottom flex-wrap gap-3">
             <div>
               <h5 className="mb-0 fw-normal">Inventory Report</h5>
@@ -63,7 +61,7 @@ function InventoryReport() {
             </div>
           </div>
 
-          {/* Table Section */}
+     
           <div className="p-0 table-responsive" style={{ maxHeight: '65vh', overflow: 'auto' }}>
             <Table hover className="align-middle mb-0" style={{ fontSize: "13px", whiteSpace: "nowrap" }}>
               <thead style={{ position: "sticky", top: "0px", zIndex: "2", backgroundColor: "#212529", color: "#ffffff" }}>

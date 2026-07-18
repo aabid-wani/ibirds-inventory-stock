@@ -19,7 +19,7 @@ import Main from "../layout/Main";
 import { AuthContext } from "../context/AuthProvider";
 
 export default function Vendor() {
-  const [showAlert, setShowAlert] = useState(false);
+  const [, setShowAlert] = useState(false);
   const [vendor, setVendor] = useState([]);
   const [selectedVendor, setSelectedVendor] = useState(null);
   const [show, setShow] = useState(false);
@@ -89,8 +89,8 @@ export default function Vendor() {
     if (name === 'mobile') {
         const isValidLength = value.length === 10;
         const isNumeric = /^\d+$/.test(value);
-        setPhoneValidation(
-            isValidLength && isNumeric || value === '' ? null : "Invalid mobile number"
+        setPhoneValidation(`
+            ${isValidLength} && ${isNumeric} || ${value === '' ? null : "Please enter a valid 10-digit mobile number."}`
         );
     }
 
@@ -120,12 +120,10 @@ export default function Vendor() {
           toast.success("Vendor added successfully!");
         }
         
-        // Refresh data
         const result1 = await stockManagementApis.getVendor();
         setVendor(result1);
         handleClose();
       } catch (error) {
-        console.error("Error saving vendor:", error);
         toast.error("Error saving vendor.");
       }
     }
@@ -260,7 +258,7 @@ export default function Vendor() {
 
       <Container fluid className="px-3">
         <Card className="border-0 shadow-sm" style={{ borderRadius: '8px' }}>
-          {/* Header Section */}
+      
           <div className="d-flex justify-content-between align-items-center p-3 border-bottom flex-wrap gap-3">
             <div>
               <h5 className="mb-0 fw-normal">Vendor List</h5>
@@ -296,7 +294,6 @@ export default function Vendor() {
             </div>
           </div>
 
-          {/* Data Table Section */}
           <div className="p-0">
             <DataTable
               columns={columns}
@@ -309,7 +306,6 @@ export default function Vendor() {
           </div>
         </Card>
 
-        {/* Add/Edit Modal */}
         <Modal show={show} onHide={handleClose} backdrop="static" size="lg">
           <Form noValidate validated={validated} onSubmit={handleSubmit}>
             <Modal.Header closeButton>

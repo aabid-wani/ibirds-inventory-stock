@@ -70,7 +70,8 @@ async function addIssue(issue, createdBy){
 
 async function removeIssue(id){
     try{
-        const result = await connection.query(`DELETE FROM public.issues where id='${id}'`);
+        const query = `DELETE FROM public.issues where id=$1`;
+        const result = await connection.query(query, [id]);
         return result.rows;
     }catch(error){
         throw error;
@@ -100,7 +101,6 @@ async function updateIssueQuantity(id,issue){
 }
 
 async function insertBulkProvisions(provisions) {
-    console.log('provisions bluk ', provisions);
   try {
     await connection.query("BEGIN");
     const insertQuery = `

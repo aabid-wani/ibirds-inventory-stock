@@ -14,7 +14,6 @@ module.exports = function (app) {
                 res.status(404).send({   message: 'No module found'  });
             }
         } catch (error) {
-            console.error('Error:', error.message);
             res.status(500).send({ message: 'Internal Server Error' });
         }
     });
@@ -31,7 +30,6 @@ module.exports = function (app) {
                 });
             }
         } catch (error) {
-            console.error('Error:', error.message);
             res.status(500).send({ message: 'Internal Server Error' });
         }
     });
@@ -46,7 +44,6 @@ module.exports = function (app) {
                 res.status(404).send({  message: 'No module found'  });
             }
         } catch (error) {
-            console.error('Error:', error.message);
             res.status(500).send({ message: 'Internal Server Error' });
         }
 
@@ -66,7 +63,6 @@ module.exports = function (app) {
             });
         }
         } catch (error) {
-            console.error('Error:', error.message);
             res.status(500).send({ message: 'Internal Server Error' });
         }
     });
@@ -81,7 +77,6 @@ module.exports = function (app) {
                 res.status(404).send({  message: 'No module found' });
             }
         } catch (error) {
-            console.error('Error:', error.message);
             res.status(500).send({ message: 'Internal Server Error' });
         }
     });

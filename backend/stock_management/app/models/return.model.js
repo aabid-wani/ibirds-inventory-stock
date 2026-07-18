@@ -10,17 +10,12 @@ async function getReturn() {
     }
 }
 async function getReturnAll() {
-    // console.log('Getting all returns');
     try{
-            //  select returns.*, products.name As product_name,orders.order_number,issues.issue_date from returns 
-	   		//  inner join products on returns.product_id = products.id
-            //  inner join orders on returns.order_id = orders.id
         const result = await connection.query(`
              select returns.*, products.name As product_name,issues.issue_date from returns 
 	   		inner join products on returns.product_id = products.id
             inner join issues on returns.issue_id = issues.id
             `);
-            // console.log(result);
         return result.rows;
     }catch(error){
         throw error;
