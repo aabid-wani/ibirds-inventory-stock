@@ -60,7 +60,7 @@ async function addOrder(order) {
         const result = await connection.query(
             `INSERT INTO public.orders(invoice_number, order_date, status, total_amount, user_id, branch_id, vendor_id,created_by) 
             VALUES($1, $2, $3, $4, $5, $6, $7,$8) RETURNING *`,
-            [order.invoice_number, order.order_date, order.status, order.total_amount, order.user_id, order.branch_id, order.vendor_id,created_by]
+            [order.invoice_number, order.order_date, order.status, order.total_amount, order.user_id, order.branch_id, order.vendor_id, order.created_by]
         );
         return result.rows;
     } catch (error) {

@@ -2,16 +2,21 @@ import React, { useEffect, useMemo, useState } from "react";
 import stockManagementApis from "../apis/StockManagementApis";
 import {
   BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer,
-  PieChart, Pie, Cell,
+  PieChart, Pie, Cell, Legend,
 } from "recharts";
 import Main from "../layout/Main";
 import {
   Box, Typography, Grid, Paper, TextField, Select, MenuItem,
-  FormControl, Checkbox, FormControlLabel, Card,
+  FormControl, InputLabel, Checkbox, FormControlLabel, Card,
   CardContent, Button, Chip, Skeleton,
 } from "@mui/material";
 import { NavLink } from "react-router-dom";
+import Inventory2OutlinedIcon from "@mui/icons-material/Inventory2Outlined";
+import OutboxOutlinedIcon from "@mui/icons-material/OutboxOutlined";
+import CheckCircleOutlineIcon from "@mui/icons-material/CheckCircleOutline";
+import ShoppingCartOutlinedIcon from "@mui/icons-material/ShoppingCartOutlined";
 
+// ─── Design tokens ────────────────────────────────────────────────────────────
 const COLORS = {
   purple: "#534AB7",
   purpleLight: "#EEEDFE",
@@ -30,25 +35,34 @@ const cardBase = {
   border: "0.5px solid rgba(0,0,0,0.1)",
   borderRadius: 12,
   overflow: "hidden",
+  borderRadius: "0px ",
 };
 
+// ─── Sub-components ───────────────────────────────────────────────────────────
 
-function StatCard({ label, value, sub, accent }) {
+function StatCard({ label, value, sub, accent,icon: Icon }) {
   return (
     <Card elevation={0} sx={{ ...cardBase, position: "relative" }}>
       <Box sx={{ height: 3, background: accent, width: "100%" }} />
-      <CardContent sx={{ p: "14px 16px !important" }}>
+      <CardContent sx={{ p: "14px 16px !important" ,display: "flex", alignItems: "center", gap: 1.5}}>
+         <Box sx={{ width: 40, height: 40, borderRadius: 2, background: `${accent}18`, color: accent, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+          <Icon fontSize="small" />
+        </Box>
+         <Box sx={{ minWidth: 0 }}>
+
+
         <Typography sx={{ fontSize: 11, fontWeight: 500, color: "#888", textTransform: "uppercase", letterSpacing: "0.05em", mb: 0.5 }}>
           {label}
         </Typography>
         <Typography sx={{ fontSize: 26, fontWeight: 500, color: "#1a1a1a", lineHeight: 1.2 }}>
           {value}
         </Typography>
-        {sub && (
+       {/* {sub && (
           <Typography sx={{ fontSize: 11, color: "#aaa", mt: 0.5 }}>
-            {sub}
+          {sub}
           </Typography>
-        )}
+          )} */}
+        </Box>
       </CardContent>
     </Card>
   );
@@ -158,6 +172,7 @@ function ProductCard({ product }) {
   );
 }
 
+// ─── Main component ───────────────────────────────────────────────────────────
 
 export default function HomePage() {
   const [products, setProducts] = useState([]);
@@ -248,6 +263,8 @@ export default function HomePage() {
   return (
     <Main>
       <Box sx={{ p: 3, background: "#f6f7fb", minHeight: "100vh" }}>
+
+        {/* ── Header ── */}
         <Box
           display="flex"
           flexDirection={{ xs: "column", md: "row" }}
@@ -325,6 +342,7 @@ export default function HomePage() {
           </Box>
         </Box>
 
+        {/* ── Stat cards ── */}
         <Grid container spacing={1.5} mb={3}>
           <Grid item xs={12} sm={6} md={3}>
             <StatCard
@@ -332,6 +350,7 @@ export default function HomePage() {
               value={loading ? "—" : totalProductQuantity.toLocaleString("en-IN")}
               sub="Across all categories"
               accent={COLORS.purple}
+              icon={Inventory2OutlinedIcon}
             />
           </Grid>
           <Grid item xs={12} sm={6} md={3}>
@@ -340,6 +359,7 @@ export default function HomePage() {
               value={loading ? "—" : totalIssueQuantity.toLocaleString("en-IN")}
               sub="Items issued to date"
               accent={COLORS.coral}
+              icon={OutboxOutlinedIcon}
             />
           </Grid>
           <Grid item xs={12} sm={6} md={3}>
@@ -348,6 +368,7 @@ export default function HomePage() {
               value={loading ? "—" : activeProducts}
               sub="With stock movement"
               accent={COLORS.teal}
+              icon={CheckCircleOutlineIcon}
             />
           </Grid>
           <Grid item xs={12} sm={6} md={3}>
@@ -356,11 +377,13 @@ export default function HomePage() {
               value={loading ? "—" : `₹${totalPurchase.toLocaleString("en-IN")}`}
               sub="Across all vendors"
               accent={COLORS.amber}
+              icon={ShoppingCartOutlinedIcon}
             />
           </Grid>
         </Grid>
 
-        <Box display="flex" gap={1.5} mb={3} flexWrap="wrap">
+        {/* ── Action buttons ── */}
+        {/* <Box display="flex" gap={1.5} mb={3} flexWrap="wrap">
           <NavLink to="/low_stock" style={{ textDecoration: "none" }}>
             <Button
               variant="contained"
@@ -387,8 +410,9 @@ export default function HomePage() {
               Get asset report
             </Button>
           </NavLink>
-        </Box>
+        </Box> */}
 
+        {/* ── Lists + Bar chart ── */}
         <Grid container spacing={2} mb={2}>
           <Grid item xs={12} md={4}>
             <Box display="flex" flexDirection="column" gap={2} height="100%">
@@ -431,6 +455,7 @@ export default function HomePage() {
           </Grid>
         </Grid>
 
+        {/* ── Vendor pie chart ── */}
         <Paper elevation={0} sx={{ ...cardBase, p: "20px", mb: 3 }}>
           <Box display="flex" justifyContent="space-between" alignItems="center" mb={2}>
             <Typography sx={{ fontSize: 11, fontWeight: 500, color: "#888", textTransform: "uppercase", letterSpacing: "0.05em" }}>
@@ -522,6 +547,7 @@ export default function HomePage() {
           )}
         </Paper>
 
+        {/* ── Products grid ── */}
         <Box>
           <Box display="flex" justifyContent="space-between" alignItems="center" mb={1.5}>
             <Typography sx={{ fontSize: 16, fontWeight: 500, color: "#1a1a1a" }}>
