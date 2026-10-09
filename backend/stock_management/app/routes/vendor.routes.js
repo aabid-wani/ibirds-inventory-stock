@@ -29,7 +29,18 @@ module.exports = function(app) {
          } catch (error) {
             res.status(500).send({ message: 'Internal Server Error' }); 
         }
-    }); 
+    });
+
+    router.get('/:id/orders', fetchApi, async (req, res) => {
+        try {
+            const vendorId = req.params.id;
+            const { month } = req.query;
+            const orders = await Vendor.getVendorOrders(vendorId, month);
+            res.status(200).send(orders || []);
+        } catch (error) {
+            res.status(500).send({ message: 'Internal Server Error' });
+        }
+    });
 
     router.post('/create', fetchApi , async (req, res)=> {
         try {

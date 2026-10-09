@@ -41,9 +41,21 @@ async function addOrderLineItems(orderLineItems,orderId) {
             const productId = item.product_id;
             const quantityToAdd = parseInt(item.quantity);
 
-            // Get current stock quantity
+            // Get current stock quantity and check max capacity limit
             const productData = await Product.getProductById(productId);
-            const currentStock = productData?.[0]?.total_buy_quantity || 0;
+            const currentStock = parseFloat(productData?.[0]?.total_buy_quantity || 0);
+            const currentIssue = parseFloat(productData?.[0]?.total_issue_quantity || 0);
+            const maxQuantity = productData?.[0]?.max_quantity !== null && productData?.[0]?.max_quantity !== undefined && parseFloat(productData[0].max_quantity) > 0
+                ? parseFloat(productData[0].max_quantity)
+                : null;
+
+            if (maxQuantity !== null) {
+                const currentRemaining = Math.max(0, currentStock - currentIssue);
+                const maxCanBuy = Math.max(0, maxQuantity - currentRemaining);
+                if (quantityToAdd > maxCanBuy) {
+                    throw new Error(`Order quantity for "${productData?.[0]?.name || 'Product'}" (${quantityToAdd}) exceeds maximum purchasable limit of ${maxCanBuy} (Current Stock: ${currentRemaining}, Max Limit: ${maxQuantity}).`);
+                }
+            }
 
             const newStock = parseFloat(currentStock) + parseFloat(quantityToAdd);
             // console.log('newStock',newStock);

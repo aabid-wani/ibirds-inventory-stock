@@ -1,14 +1,6 @@
-import React, { useContext, useEffect, useState } from "react";
+import React, { useContext, useEffect, useMemo, useState } from "react";
 import stockManagementApis from "../apis/StockManagementApis";
-import {
-  Container,
-  Row,
-  Col,
-  Card,
-  Modal,
-  Button,
-  Form,
-} from "react-bootstrap";
+import { Container, Row, Col, Card, Modal, Button, Form, Badge } from "react-bootstrap";
 import { Link } from "react-router-dom";
 import DataTable from "react-data-table-component";
 import { TextField, InputAdornment } from "@mui/material";
@@ -16,26 +8,47 @@ import Main from "../layout/Main";
 import { AuthContext } from "../context/AuthProvider";
 import { toast, ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
+import * as XLSX from "xlsx";
+import { saveAs } from "file-saver";
+import moment from "moment";
+
+// Theme Tokens
+const COLORS = {
+  primary: "#534AB7",
+  primaryHover: "#4338CA",
+  primaryLight: "#EEEDFE",
+  success: "#1D9E75",
+  successLight: "#E1F5EE",
+  warning: "#D97706",
+  warningLight: "#FEF3C7",
+  danger: "#DC2626",
+  dangerLight: "#FEE2E2",
+  dark: "#1E293B",
+  cardBorder: "rgba(0, 0, 0, 0.08)",
+};
 
 export default function ProductCategory() {
+  const { permissions, loginData, hasPermission } = useContext(AuthContext);
+
   const [productCategory, setProductCategory] = useState([]);
   const [filterText, setFilterText] = useState("");
-  const [filteredCategories, setFilteredCategories] = useState([]);
+  const [statusFilter, setStatusFilter] = useState("all"); // 'all' | 'active' | 'inactive'
   const [showModal, setShowModal] = useState(false);
-  const [, setShowAlert] = useState(false);
   const [modalMode, setModalMode] = useState("add"); // 'add' or 'edit'
   const [currentCategory, setCurrentCategory] = useState(null);
-  const [newCategory, setNewCategory] = useState({ name: "", status: "" });
-  const { permissions, loginData } = useContext(AuthContext);
-  const showConfirmModel = (message) => window.confirm(message);
+  const [newCategory, setNewCategory] = useState({ name: "", status: "active" });
+  const [loader, setLoader] = useState(false);
 
   const handleGetData = async () => {
+    setLoader(true);
     try {
       const result = await stockManagementApis.getProductCategory();
-      setProductCategory(result);
-      setFilteredCategories(result);
+      setProductCategory(Array.isArray(result) ? result : []);
     } catch (error) {
       setProductCategory([]);
+      toast.error("Failed to load categories");
+    } finally {
+      setLoader(false);
     }
   };
 
@@ -43,44 +56,64 @@ export default function ProductCategory() {
     handleGetData();
   }, []);
 
-  useEffect(() => {
-    const filteredData = productCategory.filter(
-      (item) =>
-        item.name.toLowerCase().includes(filterText.toLowerCase()) ||
-        item.status.toLowerCase().includes(filterText.toLowerCase())
-    );
-    setFilteredCategories(filteredData);
-  }, [filterText, productCategory]);
+  // Compute KPI metrics
+  const kpis = useMemo(() => {
+    let activeCount = 0;
+    let inactiveCount = 0;
+
+    productCategory.forEach((cat) => {
+      if (cat.status === "active") activeCount++;
+      else inactiveCount++;
+    });
+
+    return {
+      totalCategories: productCategory.length,
+      activeCount,
+      inactiveCount,
+    };
+  }, [productCategory]);
+
+  // Filtered categories
+  const filteredCategories = useMemo(() => {
+    const search = filterText.toLowerCase().trim();
+
+    return productCategory.filter((item) => {
+      if (statusFilter === "active" && item.status !== "active") return false;
+      if (statusFilter === "inactive" && item.status === "active") return false;
+
+      if (!search) return true;
+      const name = String(item.name || "").toLowerCase();
+      const status = String(item.status || "").toLowerCase();
+      return name.includes(search) || status.includes(search);
+    });
+  }, [productCategory, filterText, statusFilter]);
 
   const deleteHandle = async (id) => {
-    const isConfirmed = await showConfirmModel("Are you sure you want to delete this record?");
-    if (isConfirmed) {
-      try {
-        await stockManagementApis.deleteProductCategory(id);
-        toast.success('Successfully deleted record');
-        setProductCategory((prevPrd) => prevPrd.filter((ord) => ord.id !== id));
-      } catch (error) {
-        toast.error('Error deleting record');
-        setShowAlert(true);
-      }
-    } else {
-      setShowAlert(true);
+    const isConfirmed = window.confirm("Are you sure you want to delete this category?");
+    if (!isConfirmed) return;
+
+    try {
+      await stockManagementApis.deleteProductCategory(id);
+      toast.success("Category deleted successfully!");
+      handleGetData();
+    } catch (error) {
+      toast.error("Error deleting category: " + error.message);
     }
   };
 
   const handleModalClose = () => {
     setShowModal(false);
     setCurrentCategory(null);
-    setNewCategory({ name: "", status: "" });
+    setNewCategory({ name: "", status: "active" });
   };
 
   const handleModalShow = (mode, category = null) => {
     setModalMode(mode);
     if (mode === "edit" && category) {
       setCurrentCategory(category);
-      setNewCategory({ name: category.name, status: category.status });
+      setNewCategory({ name: category.name, status: category.status || "active" });
     } else {
-      setNewCategory({ name: "", status: "" });
+      setNewCategory({ name: "", status: "active" });
     }
     setShowModal(true);
   };
@@ -95,248 +128,556 @@ export default function ProductCategory() {
 
   const handleSaveCategory = async (e) => {
     e.preventDefault();
+    if (!newCategory.name.trim()) {
+      toast.error("Category name is required.");
+      return;
+    }
+
     try {
       let resp;
       if (modalMode === "edit" && currentCategory) {
-        const payload = { ...newCategory, updated_by: loginData?.id };
-        resp = await stockManagementApis.updateProductCategory(
-          currentCategory.id,
-          payload
-        );
-        toast.success("Product category updated successfully");
+        resp = await stockManagementApis.updateProductCategory(currentCategory.id, {
+          ...newCategory,
+          updated_by: loginData?.id,
+        });
       } else {
-        const payload = { ...newCategory, created_by: loginData?.id };
-        resp = await stockManagementApis.addProductCategory(payload);
-        if (resp && resp.success) {
-          toast.success(resp.message || "Product Category Added");
-        } else {
-          toast.error(resp.errors);
-        }
+        resp = await stockManagementApis.addProductCategory({
+          ...newCategory,
+          created_by: loginData?.id,
+        });
+      }
+
+      if (resp && resp.message) {
+        toast.success(resp.message);
+      } else {
+        toast.success("Category saved successfully!");
       }
       handleGetData();
       handleModalClose();
     } catch (error) {
-      toast.error("Error saving category");
+      toast.error("Error saving category: " + error.message);
     }
   };
+
+  // Export to Excel
+  const exportToExcel = () => {
+    if (filteredCategories.length === 0) {
+      toast.info("No records to export.");
+      return;
+    }
+
+    const exportRows = filteredCategories.map((c, idx) => ({
+      "S.No.": idx + 1,
+      "Category Name": c.name,
+      Status: c.status === "active" ? "Active" : "Inactive",
+      "Created Date": c.created_at ? moment(c.created_at).format("DD/MM/YYYY") : "-",
+    }));
+
+    const worksheet = XLSX.utils.json_to_sheet(exportRows);
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, "Categories");
+
+    worksheet["!cols"] = Object.keys(exportRows[0]).map((key) => ({
+      wch: Math.max(key.length + 3, 16),
+    }));
+
+    const excelBuffer = XLSX.write(workbook, { bookType: "xlsx", type: "array" });
+    const blob = new Blob([excelBuffer], {
+      type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    });
+    saveAs(blob, `Product_Categories_${moment().format("YYYY-MM-DD")}.xlsx`);
+    toast.success(`Exported ${exportRows.length} categories!`);
+  };
+
+  const hasAddPermission = hasPermission('productCategory', 'add');
+  const hasEditPermission = hasPermission('productCategory', 'edit');
+  const hasDeletePermission = hasPermission('productCategory', 'del');
 
   const columns = [
     {
       name: "S.No.",
-      selector: (row, index) => index + 1,
+      selector: (_, index) => index + 1,
       sortable: true,
       width: "80px",
     },
     {
-      name: "Name",
+      name: "Category Name",
       selector: (row) => row.name,
       sortable: true,
+      grow: 2,
+      cell: (row) => (
+        <div className="d-flex align-items-center gap-2 py-2">
+          <div
+            style={{
+              width: "32px",
+              height: "32px",
+              borderRadius: "7px",
+              backgroundColor: COLORS.primaryLight,
+              color: COLORS.primary,
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              fontSize: "13px",
+            }}
+          >
+            <i className="fa-solid fa-layer-group"></i>
+          </div>
+          <div>
+            <span className="fw-semibold text-dark" style={{ fontSize: "14px" }}>
+              {row.name}
+            </span>
+          </div>
+        </div>
+      ),
     },
     {
-      name: "Category Status",
-      selector: (row) => (row.status === "active" ? "active" : "inactive"),
+      name: "Status",
+      selector: (row) => row.status,
       sortable: true,
-    },
-    {
-      name: "Created At",
-      selector: (row) => row.created_at,
-      sortable: true,
+      width: "140px",
+      cell: (row) => (
+        <Badge
+          bg={row.status === "active" ? "success" : "secondary"}
+          style={{
+            padding: "5px 10px",
+            borderRadius: "20px",
+            fontSize: "11px",
+            backgroundColor: row.status === "active" ? "#10B981 !important" : "#64748B !important",
+          }}
+        >
+          <i
+            className={`fa-solid ${row.status === "active" ? "fa-circle-check" : "fa-circle-xmark"} me-1`}
+          ></i>
+          {row.status === "active" ? "Active" : "Inactive"}
+        </Badge>
+      ),
     },
     {
       name: "Actions",
-      cell: (row) => {
-        const hasEditPermission = permissions?.some(
-          (role) =>
-            role.name === "Admin" ||
-            role.name === "Super Admin" ||
-            (role.name !== "Data Entry" && role.edit)
-        );
-        const hasDeletePermission = permissions?.some(
-          (role) =>
-            role.name === "Admin" ||
-            role.name === "Super Admin" ||
-            (role.name !== "Data Entry" && role.delete)
-        );
-        return (
-          <div className="d-flex gap-2">
-            {hasEditPermission && (
-              <Button
-                variant="outline-primary"
-                className="btn-sm d-flex align-items-center justify-content-center"
-                onClick={() => handleModalShow("edit", row)}
-                style={{ width: "32px", height: "32px", borderColor: "#a3a6dd", color: "#5650ce" }}
-              >
-                <i className="fa-regular fa-edit" aria-hidden="true"></i>
-              </Button>
-            )}
-            {hasDeletePermission && (
-              <Button
-                variant="outline-danger"
-                className="btn-sm d-flex align-items-center justify-content-center"
-                onClick={() => deleteHandle(row.id)}
-                style={{ width: "32px", height: "32px", borderColor: "#f5c2c7", color: "#dc3545" }}
-              >
-                <i className="fa fa-trash" aria-hidden="true"></i>
-              </Button>
-            )}
-          </div>
-        );
-      },
+      width: "120px",
       ignoreRowClick: true,
       allowOverflow: true,
       button: true,
-      width: "120px",
+      cell: (row) => (
+        <div className="d-flex align-items-center gap-1">
+          {hasEditPermission && (
+            <Button
+              size="sm"
+              variant="light"
+              onClick={() => handleModalShow("edit", row)}
+              style={{
+                width: "32px",
+                height: "32px",
+                padding: 0,
+                borderRadius: "7px",
+                backgroundColor: "#EFF6FF",
+                color: "#2563EB",
+                border: "0.5px solid #BFDBFE",
+              }}
+            >
+              <i className="fa-regular fa-pen-to-square" style={{ fontSize: "12px" }}></i>
+            </Button>
+          )}
+
+          {hasDeletePermission && (
+            <Button
+              size="sm"
+              variant="light"
+              onClick={() => deleteHandle(row.id)}
+              style={{
+                width: "32px",
+                height: "32px",
+                padding: 0,
+                borderRadius: "7px",
+                backgroundColor: "#FEF2F2",
+                color: "#DC2626",
+                border: "0.5px solid #FECACA",
+              }}
+            >
+              <i className="fa-regular fa-trash-can" style={{ fontSize: "12px" }}></i>
+            </Button>
+          )}
+        </div>
+      ),
     },
   ];
 
-  const customStyles = {
-    table: {
-      style: { textAlign: "left" },
-    },
+  const customTableStyles = {
     headRow: {
       style: {
-        backgroundColor: "#212529",
-        color: "#ffffff",
-        minHeight: "45px",
+        backgroundColor: "#1E293B",
+        color: "#F8FAFC",
+        minHeight: "48px",
         fontWeight: "600",
-        fontSize: "14px",
+        fontSize: "13px",
       },
+    },
+    headCells: {
+      style: { color: "#F8FAFC" },
     },
     rows: {
       style: {
-        minHeight: "50px",
-        fontSize: "14px",
-        color: "#495057",
+        minHeight: "56px",
+        fontSize: "13.5px",
+        color: "#334155",
+        "&:not(:last-of-type)": {
+          borderBottomStyle: "solid",
+          borderBottomWidth: "1px",
+          borderBottomColor: "#F1F5F9",
+        },
+      },
+      highlightOnHoverStyle: {
+        backgroundColor: "#F8FAFC",
+        borderBottomColor: "#E2E8F0",
+        outline: "none",
       },
     },
   };
 
-  const hasAddPermission = permissions?.some(
-    (role) => role.name === "Admin" || role.name === "Super Admin"
-  );
-
   return (
     <Main>
-      <div className="my-3 px-3" style={{ fontSize: "14px" }}>
-        <Link to="/Home" className="text-decoration-none" style={{ color: "#5650ce" }}>
-          Home
-        </Link>
-        <span className="text-muted mx-2">/</span>
-        <span className="text-muted">Product Categories</span>
+      {/* Breadcrumb Header */}
+      <div className="my-3 px-3 d-flex justify-content-between align-items-center flex-wrap gap-2">
+        <div style={{ fontSize: "14px" }}>
+          <Link to="/Home" className="text-decoration-none" style={{ color: COLORS.primary, fontWeight: "500" }}>
+            <i className="fa-solid fa-house me-1"></i> Home
+          </Link>
+          <span className="text-muted mx-2">/</span>
+          <span className="text-secondary fw-semibold">Product Categories</span>
+        </div>
+
+        <div className="d-flex align-items-center gap-2">
+          <Button
+            variant="outline-secondary"
+            size="sm"
+            onClick={handleGetData}
+            style={{ borderRadius: "8px", fontSize: "13px" }}
+          >
+            <i className="fa-solid fa-arrows-rotate me-1"></i> Refresh
+          </Button>
+          <Button
+            variant="outline-success"
+            size="sm"
+            onClick={exportToExcel}
+            style={{ borderRadius: "8px", fontSize: "13px" }}
+          >
+            <i className="fa-solid fa-file-excel me-1"></i> Export Excel
+          </Button>
+          {hasAddPermission && (
+            <Button
+              size="sm"
+              onClick={() => handleModalShow("add")}
+              style={{
+                backgroundColor: COLORS.primary,
+                borderColor: COLORS.primary,
+                borderRadius: "8px",
+                fontSize: "13px",
+                fontWeight: "500",
+              }}
+            >
+              <i className="fa-solid fa-plus me-1"></i> Add Category
+            </Button>
+          )}
+        </div>
       </div>
 
       <Container fluid className="px-3">
-        <Card className="border-0 shadow-sm" style={{ borderRadius: "8px" }}>
-          
-          <div className="d-flex justify-content-between align-items-center p-3 border-bottom flex-wrap gap-3">
-            <div>
-              <h5 className="mb-0 fw-normal">Product Category List</h5>
-              <small className="text-muted">{filteredCategories.length} records</small>
-            </div>
+        {/* Categories KPI Metric Deck */}
+        <Row className="g-3 mb-4">
+          <Col xs={12} sm={4}>
+            <Card
+              className="border-0 shadow-sm h-100 cursor-pointer"
+              onClick={() => setStatusFilter("all")}
+              style={{
+                borderRadius: "12px",
+                borderLeft: `4px solid ${COLORS.primary}`,
+                backgroundColor: statusFilter === "all" ? "#FAF5FF" : "#FFFFFF",
+              }}
+            >
+              <Card.Body className="p-3">
+                <div className="d-flex justify-content-between align-items-start">
+                  <div>
+                    <small className="text-muted text-uppercase fw-semibold" style={{ fontSize: "11px" }}>
+                      Total Categories
+                    </small>
+                    <h4 className="mb-0 fw-bold mt-1" style={{ color: COLORS.dark }}>
+                      {kpis.totalCategories}
+                    </h4>
+                  </div>
+                  <div
+                    style={{
+                      width: "36px",
+                      height: "36px",
+                      borderRadius: "8px",
+                      backgroundColor: COLORS.primaryLight,
+                      color: COLORS.primary,
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                    }}
+                  >
+                    <i className="fa-solid fa-layer-group"></i>
+                  </div>
+                </div>
+                <div className="mt-2 text-muted" style={{ fontSize: "11px" }}>
+                  Product classification taxonomy
+                </div>
+              </Card.Body>
+            </Card>
+          </Col>
 
-            <div className="d-flex align-items-center gap-3 flex-wrap">
+          <Col xs={12} sm={4}>
+            <Card
+              className="border-0 shadow-sm h-100 cursor-pointer"
+              onClick={() => setStatusFilter("active")}
+              style={{
+                borderRadius: "12px",
+                borderLeft: `4px solid ${COLORS.success}`,
+                backgroundColor: statusFilter === "active" ? "#ECFDF5" : "#FFFFFF",
+              }}
+            >
+              <Card.Body className="p-3">
+                <div className="d-flex justify-content-between align-items-start">
+                  <div>
+                    <small className="text-muted text-uppercase fw-semibold" style={{ fontSize: "11px" }}>
+                      Active Categories
+                    </small>
+                    <h4 className="mb-0 fw-bold mt-1" style={{ color: COLORS.success }}>
+                      {kpis.activeCount}
+                    </h4>
+                  </div>
+                  <div
+                    style={{
+                      width: "36px",
+                      height: "36px",
+                      borderRadius: "8px",
+                      backgroundColor: COLORS.successLight,
+                      color: COLORS.success,
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                    }}
+                  >
+                    <i className="fa-solid fa-circle-check"></i>
+                  </div>
+                </div>
+                <div className="mt-2 text-muted" style={{ fontSize: "11px" }}>
+                  In active catalog use
+                </div>
+              </Card.Body>
+            </Card>
+          </Col>
+
+          <Col xs={12} sm={4}>
+            <Card
+              className="border-0 shadow-sm h-100 cursor-pointer"
+              onClick={() => setStatusFilter("inactive")}
+              style={{
+                borderRadius: "12px",
+                borderLeft: "4px solid #64748B",
+                backgroundColor: statusFilter === "inactive" ? "#F1F5F9" : "#FFFFFF",
+              }}
+            >
+              <Card.Body className="p-3">
+                <div className="d-flex justify-content-between align-items-start">
+                  <div>
+                    <small className="text-muted text-uppercase fw-semibold" style={{ fontSize: "11px" }}>
+                      Inactive / Archived
+                    </small>
+                    <h4 className="mb-0 fw-bold mt-1" style={{ color: "#64748B" }}>
+                      {kpis.inactiveCount}
+                    </h4>
+                  </div>
+                  <div
+                    style={{
+                      width: "36px",
+                      height: "36px",
+                      borderRadius: "8px",
+                      backgroundColor: "#F1F5F9",
+                      color: "#64748B",
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                    }}
+                  >
+                    <i className="fa-solid fa-folder-closed"></i>
+                  </div>
+                </div>
+                <div className="mt-2 text-muted" style={{ fontSize: "11px" }}>
+                  Disabled categories
+                </div>
+              </Card.Body>
+            </Card>
+          </Col>
+        </Row>
+
+        {/* Master Table Card */}
+        <Card className="border-0 shadow-sm mb-4" style={{ borderRadius: "12px", overflow: "hidden" }}>
+          {/* Filter Toolbar */}
+          <div className="p-3 bg-white border-bottom">
+            <div className="d-flex justify-content-between align-items-center flex-wrap gap-3">
+              {/* Segmented Filter Pills */}
+              <div className="d-flex align-items-center gap-1 flex-wrap">
+                <button
+                  className={`btn btn-sm ${statusFilter === "all" ? "btn-dark" : "btn-light"}`}
+                  onClick={() => setStatusFilter("all")}
+                  style={{ borderRadius: "20px", fontSize: "12px", padding: "5px 12px" }}
+                >
+                  All Categories <Badge bg="light" text="dark" className="ms-1">{kpis.totalCategories}</Badge>
+                </button>
+                <button
+                  className={`btn btn-sm ${statusFilter === "active" ? "btn-success" : "btn-light"}`}
+                  onClick={() => setStatusFilter("active")}
+                  style={{ borderRadius: "20px", fontSize: "12px", padding: "5px 12px" }}
+                >
+                  Active <Badge bg="light" text="dark" className="ms-1">{kpis.activeCount}</Badge>
+                </button>
+                <button
+                  className={`btn btn-sm ${statusFilter === "inactive" ? "btn-secondary" : "btn-light"}`}
+                  onClick={() => setStatusFilter("inactive")}
+                  style={{ borderRadius: "20px", fontSize: "12px", padding: "5px 12px" }}
+                >
+                  Inactive <Badge bg="light" text="dark" className="ms-1">{kpis.inactiveCount}</Badge>
+                </button>
+              </div>
+
+              {/* Right Search Input */}
               <TextField
                 id="search"
-                placeholder="Search..."
+                placeholder="Search category..."
                 value={filterText}
                 onChange={(e) => setFilterText(e.target.value)}
                 size="small"
-                sx={{ minWidth: "200px", backgroundColor: "#fcfcfc" }}
+                sx={{
+                  minWidth: "240px",
+                  backgroundColor: "#fcfcfc",
+                  "& .MuiOutlinedInput-root": {
+                    borderRadius: "8px",
+                    fontSize: "13px",
+                  },
+                }}
                 InputProps={{
                   startAdornment: (
                     <InputAdornment position="start">
-                      <i className="fa fa-search text-muted"></i>
+                      <i className="fa-solid fa-magnifying-glass text-muted" style={{ fontSize: "12px" }}></i>
+                    </InputAdornment>
+                  ),
+                  endAdornment: filterText && (
+                    <InputAdornment position="end">
+                      <i
+                        className="fa-solid fa-xmark text-muted cursor-pointer"
+                        style={{ cursor: "pointer", fontSize: "12px" }}
+                        onClick={() => setFilterText("")}
+                      ></i>
                     </InputAdornment>
                   ),
                 }}
               />
+            </div>
 
-              {hasAddPermission && (
-                <Button
-                  className="px-3 border-0"
-                  onClick={() => handleModalShow("add")}
-                  style={{ backgroundColor: "#5650ce" }}
+            {/* Filter status summary line */}
+            <div className="d-flex justify-content-between align-items-center mt-2 pt-2 border-top">
+              <small className="text-muted" style={{ fontSize: "12px" }}>
+                Showing <b>{filteredCategories.length}</b> of {productCategory.length} categories
+                {statusFilter !== "all" && ` (Filter: ${statusFilter})`}
+                {filterText && ` matching "${filterText}"`}
+              </small>
+
+              {(filterText || statusFilter !== "all") && (
+                <button
+                  className="btn btn-link p-0 text-decoration-none"
+                  style={{ fontSize: "12px", color: COLORS.primary }}
+                  onClick={() => {
+                    setFilterText("");
+                    setStatusFilter("all");
+                  }}
                 >
-                  <i className="fa fa-plus me-1" aria-hidden="true"></i> Add Category
-                </Button>
+                  Clear Filters
+                </button>
               )}
             </div>
           </div>
 
-          <div className="p-0">
-            <DataTable
-              columns={columns}
-              data={filteredCategories}
-              pagination
-              highlightOnHover
-              customStyles={customStyles}
-              noDataComponent={<div className="p-4 text-muted">No Records Found</div>}
-            />
-          </div>
+          {/* DataTable */}
+          <DataTable
+            columns={columns}
+            data={filteredCategories}
+            pagination
+            paginationPerPage={15}
+            paginationRowsPerPageOptions={[10, 15, 25, 50]}
+            highlightOnHover
+            customStyles={customTableStyles}
+            noDataComponent={
+              <div className="p-5 text-center text-muted">
+                <i className="fa-solid fa-folder-open mb-2" style={{ fontSize: "36px", color: "#CBD5E1" }}></i>
+                <p className="mb-0 fw-medium">No Categories Found</p>
+                <small>Try clearing your search query or add a new category.</small>
+              </div>
+            }
+          />
         </Card>
+
+        {/* Add / Edit Category Modal */}
+        <Modal show={showModal} onHide={handleModalClose} backdrop="static">
+          <Form onSubmit={handleSaveCategory}>
+            <Modal.Header closeButton style={{ backgroundColor: "#F8FAFC" }}>
+              <Modal.Title style={{ fontSize: "16px", fontWeight: "600", color: "#1E293B" }}>
+                <i className="fa-solid fa-layer-group me-2 text-primary"></i>
+                {modalMode === "edit" ? "Update Category" : "Add Product Category"}
+              </Modal.Title>
+            </Modal.Header>
+            <Modal.Body className="p-4">
+              <Form.Group className="mb-3">
+                <Form.Label className="fw-semibold text-secondary" style={{ fontSize: "13px" }}>
+                  Category Name <span className="text-danger">*</span>
+                </Form.Label>
+                <Form.Control
+                  type="text"
+                  placeholder="e.g. Stationery, Electronics, Groceries"
+                  name="name"
+                  value={newCategory.name}
+                  onChange={handleInputChange}
+                  required
+                  autoFocus
+                />
+              </Form.Group>
+
+              <Form.Group className="mb-2">
+                <Form.Label className="fw-semibold text-secondary" style={{ fontSize: "13px" }}>
+                  Status
+                </Form.Label>
+                <Form.Select
+                  name="status"
+                  value={newCategory.status}
+                  onChange={handleInputChange}
+                  required
+                >
+                  <option value="active">Active</option>
+                  <option value="inactive">Inactive</option>
+                </Form.Select>
+              </Form.Group>
+            </Modal.Body>
+            <Modal.Footer style={{ backgroundColor: "#F8FAFC" }}>
+              <Button variant="secondary" size="sm" onClick={handleModalClose} style={{ borderRadius: "8px" }}>
+                Cancel
+              </Button>
+              <Button
+                type="submit"
+                size="sm"
+                style={{
+                  backgroundColor: COLORS.primary,
+                  borderColor: COLORS.primary,
+                  borderRadius: "8px",
+                }}
+              >
+                {modalMode === "edit" ? "Save Changes" : "Create Category"}
+              </Button>
+            </Modal.Footer>
+          </Form>
+        </Modal>
+
+        <ToastContainer position="top-right" autoClose={3000} />
       </Container>
-
-      <Modal show={showModal} onHide={handleModalClose} backdrop="static">
-        <Form onSubmit={handleSaveCategory}>
-          <Modal.Header closeButton>
-            <Modal.Title>
-              {modalMode === "edit" ? "Update Product Category" : "Add Product Category"}
-            </Modal.Title>
-          </Modal.Header>
-          <Modal.Body>
-            <Container>
-              <Row>
-                <Col md={12}>
-                  <Form.Group className="mb-3">
-                    <Form.Label>Category Name</Form.Label>
-                    <Form.Control
-                      type="text"
-                      placeholder="Enter category name"
-                      name="name"
-                      value={newCategory.name}
-                      onChange={handleInputChange}
-                      required
-                    />
-                    <Form.Control.Feedback type="invalid">
-                      Please enter a name.
-                    </Form.Control.Feedback>
-                  </Form.Group>
-                </Col>
-              </Row>
-              <Row>
-                <Col md={12}>
-                  <Form.Group className="mb-3">
-                    <Form.Label>Status</Form.Label>
-                    <Form.Select
-                      name="status"
-                      value={newCategory.status}
-                      onChange={handleInputChange}
-                      required
-                    >
-                      <option value="">Select Status</option>
-                      <option value="active">Active</option>
-                      <option value="inactive">Inactive</option>
-                    </Form.Select>
-                    <Form.Control.Feedback type="invalid">
-                      Please select a status.
-                    </Form.Control.Feedback>
-                  </Form.Group>
-                </Col>
-              </Row>
-            </Container>
-          </Modal.Body>
-          <Modal.Footer>
-            <Button variant="secondary" onClick={handleModalClose}>
-              Close
-            </Button>
-            <Button type="submit" style={{ backgroundColor: "#5650ce", border: "none" }}>
-              {modalMode === "edit" ? "Update" : "Add"}
-            </Button>
-          </Modal.Footer>
-        </Form>
-      </Modal>
-
-      <ToastContainer />
     </Main>
   );
 }

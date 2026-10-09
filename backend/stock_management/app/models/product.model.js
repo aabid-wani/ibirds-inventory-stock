@@ -25,7 +25,23 @@ async function getProduct() {
               WHERE iss.product_id = prod.id
               ORDER BY iss.issue_date DESC
               LIMIT 1
-          ) AS latest_issue_date
+          ) AS latest_issue_date,
+          (
+              SELECT json_agg(json_build_object('id', v.id, 'name', TRIM(v.name)))
+              FROM (
+                  SELECT DISTINCT v.id, v.name
+                  FROM order_line_item oli2
+                  JOIN orders o2 ON oli2.order_id = o2.id
+                  JOIN vendors v ON o2.vendor_id = v.id
+                  WHERE oli2.product_id = prod.id
+              ) v
+          ) AS vendors,
+          (
+              SELECT array_agg(DISTINCT o2.vendor_id)
+              FROM order_line_item oli2
+              JOIN orders o2 ON oli2.order_id = o2.id
+              WHERE oli2.product_id = prod.id
+          ) AS vendor_ids
       FROM products AS prod 
       INNER JOIN product_category AS cat  
           ON prod.category_id = cat.id
@@ -44,6 +60,7 @@ async function LowStockAvailable() {
   try {
     const result = await connection.query(`
       SELECT 
+      id,
       name,
       total_buy_quantity, 
       total_issue_quantity,

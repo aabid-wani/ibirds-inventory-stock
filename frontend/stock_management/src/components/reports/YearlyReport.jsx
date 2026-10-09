@@ -1,48 +1,58 @@
-import React, { useState, useEffect } from "react";
-import { Card, Table, Button, Form, Container } from "react-bootstrap";
+import React, { useState, useEffect, useMemo } from "react";
+import { Card, Table, Button, Form, Container, Row, Col } from "react-bootstrap";
 import * as XLSX from "xlsx";
 import { saveAs } from "file-saver";
 import Main from "../layout/Main";
 import { Link } from "react-router-dom";
-import Apis from '../apis/StockManagementApis';
+import Apis from "../apis/StockManagementApis";
+
+const PURPLE = "#534AB7";
+const TEAL = "#1D9E75";
+const CORAL = "#D85A30";
 
 const YearlyReport = () => {
-  const [selectedYear, setSelectedYear] = useState("");
+  const currentYear = new Date().getFullYear();
+  const [selectedYear, setSelectedYear] = useState(currentYear.toString());
   const [years, setYears] = useState([]);
   const [yearlyReportData, setYearlyReportData] = useState([]);
-
-  const primaryColor = "#5650ce";
+  const [loading, setLoading] = useState(false);
 
   useEffect(() => {
-    const currentYear = new Date().getFullYear();
     const yearOptions = [];
     for (let i = 0; i <= 5; i++) {
       const year = currentYear - i;
       yearOptions.push({ value: year.toString(), label: year.toString() });
     }
     setYears(yearOptions);
-    setSelectedYear(currentYear.toString());
-  }, []);
+  }, [currentYear]);
 
   useEffect(() => {
     if (selectedYear) {
       const fetchData = async () => {
         try {
+          setLoading(true);
           const response = await Apis.YearlyReport(selectedYear);
           setYearlyReportData(response || []);
         } catch (err) {
-          throw err;
+          setYearlyReportData([]);
+        } finally {
+          setLoading(false);
         }
       };
       fetchData();
     }
   }, [selectedYear]);
 
+  const totalClosingStock = useMemo(() => {
+    return yearlyReportData.reduce((sum, item) => sum + (parseFloat(item.closing_stock) || 0), 0);
+  }, [yearlyReportData]);
+
+  const totalOpeningStock = useMemo(() => {
+    return yearlyReportData.reduce((sum, item) => sum + (parseFloat(item.opening_stock) || 0), 0);
+  }, [yearlyReportData]);
+
   const downloadYearlyExcel = () => {
-    if (!yearlyReportData.length) {
-     
-      return;
-    }
+    if (!yearlyReportData.length) return;
 
     const headers = [
       "Product",
@@ -53,13 +63,11 @@ const YearlyReport = () => {
       "Closing Stock",
       "Employee Name",
     ];
-    
+
     const worksheetData = [headers];
 
     yearlyReportData.forEach((item) => {
-      const monthlyData = Array.isArray(item.monthly)
-        ? item.monthly
-        : Array(12).fill("");
+      const monthlyData = Array.isArray(item.monthly) ? item.monthly : Array(12).fill("");
       const row = [
         item.product || "",
         item.opening_stock ?? "",
@@ -79,99 +87,185 @@ const YearlyReport = () => {
       type: "array",
     });
     const blob = new Blob([excelBuffer], { type: "application/octet-stream" });
-    saveAs(blob, `Inventory-Yearly-Report-${selectedYear}.xlsx`);
+    saveAs(blob, `Inventory-Yearly-Audit-${selectedYear}.xlsx`);
   };
 
   return (
     <Main>
-      <div className="my-3 px-3" style={{ fontSize: "14px" }}>
-        <Link to="/Home" className="text-decoration-none" style={{ color: primaryColor }}>Home</Link>
-        <span className="text-muted mx-2">/</span>
-        <span className="text-muted">Yearly Report</span>
-      </div>
-
-      <Container fluid className="px-3">
-        <Card className="border-0 shadow-sm mb-4" style={{ borderRadius: "8px", overflow: "hidden" }}>
-          
-          <div className="d-flex justify-content-between align-items-center p-3 border-bottom bg-white flex-wrap gap-3">
-            <div>
-              <h5 className="mb-0 fw-normal">Yearly Inventory Report</h5>
-            </div>
-            
-            <div className="d-flex align-items-center gap-3">
-              <div className="d-flex align-items-center">
-                <small className="text-muted me-2 fw-medium text-uppercase" style={{ fontSize: "12px" }}>Year:</small>
-                <Form.Select
-                  value={selectedYear}
-                  onChange={(e) => setSelectedYear(e.target.value)}
-                  size="sm"
-                  className="border-light-subtle shadow-none"
-                  style={{ minWidth: "120px", backgroundColor: "#f8f9fa", cursor: "pointer" }}
-                >
-                  {years.map((year) => (
-                    <option key={year.value} value={year.value}>
-                      {year.label}
-                    </option>
-                  ))}
-                </Form.Select>
-              </div>
-
-              <Button
-                onClick={downloadYearlyExcel}
-                className="btn-sm d-flex align-items-center gap-2 border-0 px-3"
-                style={{ backgroundColor: "#107c41" }}
-              >
-                <i className="fa-solid fa-file-excel"></i> Export Excel
-              </Button>
-            </div>
+      <div style={{ background: "#f8fafc", minHeight: "100vh", padding: "24px" }}>
+        {/* ── Top Bar ── */}
+        <div className="d-flex justify-content-between align-items-center mb-3">
+          <div style={{ fontSize: "13px", color: "#64748b" }}>
+            <Link to="/Home" style={{ color: PURPLE, textDecoration: "none", fontWeight: 600 }}>
+              Home
+            </Link>{" "}
+            / <span style={{ color: "#0f172a", fontWeight: 600 }}>Annual Stock Consumption Matrix</span>
           </div>
 
-          <div className="p-0 bg-white">
-            {yearlyReportData.length > 0 ? (
-              <div className="table-responsive" style={{ maxHeight: "65vh" }}>
-                <Table bordered hover className="align-middle mb-0" style={{ fontSize: "13px", whiteSpace: "nowrap" }}>
-                  <thead style={{ position: "sticky", top: 0, zIndex: 2, backgroundColor: "#212529", color: "#ffffff" }}>
-                    <tr>
-                      <th style={{ backgroundColor: "inherit", color: "inherit", fontWeight: "600", padding: "12px", border: "1px solid #343a40" }}>Product</th>
-                      <th className="text-center" style={{ backgroundColor: "inherit", color: "inherit", fontWeight: "600", padding: "12px", border: "1px solid #343a40" }}>Opening Stock</th>
-                      {Array.from({ length: 12 }, (_, i) => (
-                        <th className="text-center" style={{ backgroundColor: "inherit", color: "inherit", fontWeight: "600", padding: "12px", border: "1px solid #343a40" }} key={i}>
-                          {new Date(0, i).toLocaleString("default", { month: "short" })}
-                        </th>
-                      ))}
-                      <th className="text-center" style={{ backgroundColor: "inherit", color: "inherit", fontWeight: "600", padding: "12px", border: "1px solid #343a40" }}>Closing Stock</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {yearlyReportData.map((item, index) => {
-                      const monthlyData = Array.isArray(item.monthly)
-                        ? item.monthly
-                        : Array(12).fill("");
-                      return (
-                        <tr key={index}>
-                          <td className="fw-medium px-3 text-dark bg-light" style={{ position: "sticky", left: 0, zIndex: 1 }}>{item.product}</td>
-                          <td className="text-center fw-medium text-muted bg-light">{item.opening_stock}</td>
-                          {monthlyData.slice(0, 12).map((value, i) => (
-                            <td key={i} className="text-center text-muted">
-                              {value || "-"}
-                            </td>
-                          ))}
-                          <td className="text-center fw-bold text-dark bg-light">{item.closing_stock}</td>
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                </Table>
+          <div className="d-flex align-items-center gap-2">
+            <Form.Select
+              value={selectedYear}
+              onChange={(e) => setSelectedYear(e.target.value)}
+              style={{
+                minWidth: "140px",
+                backgroundColor: "#ffffff",
+                borderColor: "#cbd5e1",
+                fontSize: "12.5px",
+                fontWeight: 600,
+                borderRadius: "8px",
+                padding: "7px 12px",
+              }}
+              size="sm"
+            >
+              {years.map((year) => (
+                <option key={year.value} value={year.value}>
+                  Calendar Year {year.label}
+                </option>
+              ))}
+            </Form.Select>
+
+            <Button
+              onClick={downloadYearlyExcel}
+              className="btn-sm d-flex align-items-center gap-2"
+              style={{
+                background: "#ffffff",
+                border: "1px solid #cbd5e1",
+                color: "#334155",
+                fontWeight: 600,
+                borderRadius: "8px",
+                padding: "7px 14px",
+              }}
+            >
+              <i className="fa-solid fa-file-excel text-success"></i> Export Excel
+            </Button>
+          </div>
+        </div>
+
+        {/* ── KPI Deck ── */}
+        <Row className="g-3 mb-4">
+          <Col md={4}>
+            <div
+              style={{
+                background: "#ffffff",
+                border: "1px solid #e2e8f0",
+                borderRadius: "12px",
+                padding: "16px 20px",
+                borderTop: `3px solid ${PURPLE}`,
+              }}
+            >
+              <div style={{ fontSize: "11px", fontWeight: 700, color: "#64748b", textTransform: "uppercase" }}>
+                Total Products Analyzed
               </div>
-            ) : (
-              <div className="p-5 text-center text-muted">
-                <i className="fa-regular fa-folder-open mb-3" style={{ fontSize: "48px", opacity: 0.5 }}></i>
-                <p>No data available for the selected year.</p>
+              <div style={{ fontSize: "24px", fontWeight: 700, color: "#0f172a", marginTop: "4px" }}>
+                {yearlyReportData.length} SKUs
               </div>
-            )}
+              <div style={{ fontSize: "11px", color: "#94a3b8", marginTop: "2px" }}>Active inventory matrix</div>
+            </div>
+          </Col>
+
+          <Col md={4}>
+            <div
+              style={{
+                background: "#ffffff",
+                border: "1px solid #e2e8f0",
+                borderRadius: "12px",
+                padding: "16px 20px",
+                borderTop: `3px solid ${TEAL}`,
+              }}
+            >
+              <div style={{ fontSize: "11px", fontWeight: 700, color: "#64748b", textTransform: "uppercase" }}>
+                Beginning Balance ({selectedYear})
+              </div>
+              <div style={{ fontSize: "24px", fontWeight: 700, color: TEAL, marginTop: "4px" }}>
+                {totalOpeningStock.toLocaleString("en-IN")} Units
+              </div>
+              <div style={{ fontSize: "11px", color: "#94a3b8", marginTop: "2px" }}>Opening inventory on record</div>
+            </div>
+          </Col>
+
+          <Col md={4}>
+            <div
+              style={{
+                background: "#ffffff",
+                border: "1px solid #e2e8f0",
+                borderRadius: "12px",
+                padding: "16px 20px",
+                borderTop: `3px solid ${CORAL}`,
+              }}
+            >
+              <div style={{ fontSize: "11px", fontWeight: 700, color: "#64748b", textTransform: "uppercase" }}>
+                Ending Balance ({selectedYear})
+              </div>
+              <div style={{ fontSize: "24px", fontWeight: 700, color: CORAL, marginTop: "4px" }}>
+                {totalClosingStock.toLocaleString("en-IN")} Units
+              </div>
+              <div style={{ fontSize: "11px", color: "#94a3b8", marginTop: "2px" }}>Year-end closing reserve</div>
+            </div>
+          </Col>
+        </Row>
+
+        {/* ── Table Card ── */}
+        <Card style={{ border: "1px solid #e2e8f0", borderRadius: "14px", overflow: "hidden", boxShadow: "0 1px 3px rgba(0,0,0,0.03)" }}>
+          <div className="p-3 border-bottom d-flex justify-content-between align-items-center" style={{ background: "#ffffff" }}>
+            <h6 style={{ margin: 0, fontWeight: 700, color: "#0f172a", fontSize: "14px" }}>
+              <i className="fa-solid fa-chart-simple me-2" style={{ color: PURPLE }}></i>
+              Annual Stock Movement by Month ({selectedYear})
+            </h6>
+          </div>
+
+          <div className="table-responsive" style={{ maxHeight: "65vh" }}>
+            <Table hover className="align-middle mb-0" style={{ fontSize: "12.5px", whiteSpace: "nowrap" }}>
+              <thead style={{ position: "sticky", top: 0, zIndex: 2, background: "#1e293b", color: "#f8fafc" }}>
+                <tr>
+                  <th style={{ padding: "12px 14px", background: "inherit" }}>Product Item</th>
+                  <th className="text-center" style={{ padding: "12px 14px", background: "inherit" }}>Opening</th>
+                  {Array.from({ length: 12 }, (_, i) => (
+                    <th className="text-center" style={{ padding: "12px 10px", background: "inherit" }} key={i}>
+                      {new Date(0, i).toLocaleString("default", { month: "short" })}
+                    </th>
+                  ))}
+                  <th className="text-center" style={{ padding: "12px 14px", background: "inherit" }}>Closing</th>
+                </tr>
+              </thead>
+              <tbody>
+                {loading ? (
+                  <tr>
+                    <td colSpan={15} className="p-5 text-center text-muted">
+                      <span className="spinner-border text-primary me-2"></span> Compiling annual audit...
+                    </td>
+                  </tr>
+                ) : yearlyReportData.length > 0 ? (
+                  yearlyReportData.map((item, index) => {
+                    const monthlyData = Array.isArray(item.monthly) ? item.monthly : Array(12).fill("");
+                    return (
+                      <tr key={index}>
+                        <td className="fw-semibold px-3 text-dark bg-white" style={{ position: "sticky", left: 0, zIndex: 1, borderRight: "1px solid #e2e8f0" }}>
+                          {item.product}
+                        </td>
+                        <td className="text-center fw-medium text-muted">{item.opening_stock}</td>
+                        {monthlyData.slice(0, 12).map((value, i) => (
+                          <td key={i} className="text-center" style={{ color: value ? PURPLE : "#94a3b8", fontWeight: value ? 600 : 400 }}>
+                            {value || "—"}
+                          </td>
+                        ))}
+                        <td className="text-center fw-bold text-dark" style={{ borderLeft: "1px solid #e2e8f0" }}>
+                          {item.closing_stock}
+                        </td>
+                      </tr>
+                    );
+                  })
+                ) : (
+                  <tr>
+                    <td colSpan={15} className="p-5 text-center text-muted">
+                      No records found for the selected calendar year.
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </Table>
           </div>
         </Card>
-      </Container>
+      </div>
     </Main>
   );
 };

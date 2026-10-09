@@ -26,10 +26,14 @@ module.exports = function (app) {
     router.post('/login', async function (req, res) {
         try {
             const { email, password } = req.body;
+            if (!email || !password) {
+                return res.status(400).json({ errors: "Email and password are required", success: false });
+            }
+
             const user = await Auth.getUserLoginByEmail(email);
            
             if (!user) {
-                return res.status(400).json({ errors: "No user found", success: false });
+                return res.status(400).json({ errors: "No active user found with this email or username", success: false });
             }
 
             const passwordMatch = await bcrypt.compare(password, user.password);
@@ -45,7 +49,24 @@ module.exports = function (app) {
         }
     });
 
-    router.post('/add', fetchApi, async (req, res)=> {
+    const requireSuperAdmin = (req, res, next) => {
+        if (!req.user || req.user.role_name !== 'Super Admin') {
+            return res.status(403).json({ errors: "Access denied. Only Super Admin can manage system users." });
+        }
+        next();
+    };
+
+    const requireSuperAdminOrSelf = (req, res, next) => {
+        if (!req.user) {
+            return res.status(401).json({ errors: "Please authenticate" });
+        }
+        if (req.user.role_name === 'Super Admin' || req.params.id === req.user.id) {
+            return next();
+        }
+        return res.status(403).json({ errors: "Access denied. Only Super Admin can manage system users." });
+    };
+
+    router.post('/add', fetchApi, requireSuperAdmin, async (req, res)=> {
         try {
             const user = req.body;
             const salt = await bcrypt.genSalt(10);
@@ -91,15 +112,38 @@ module.exports = function (app) {
         }
     });
 
+const fs = require('fs');
+const path = require('path');
+
     // Update user (token required)
-    router.put('/update/:id', fetchApi, async function (req, res) {
+    router.put('/update/:id', fetchApi, requireSuperAdminOrSelf, async function (req, res) {
         try {
-            const user = req.body;
+            const user = req.body || {};
             const userId = req.params.id;
-            if (user.password) {
+
+            // Handle file upload if present in req.files
+            if (req.files && req.files.length > 0) {
+                const file = req.files.find(f => f.fieldname === 'profile_image') || req.files[0];
+                if (file) {
+                    const ext = path.extname(file.originalname) || '.jpg';
+                    const filename = `avatar_${userId}_${Date.now()}${ext}`;
+                    const uploadsDir = path.join(__dirname, '../../uploads');
+                    if (!fs.existsSync(uploadsDir)) {
+                        fs.mkdirSync(uploadsDir, { recursive: true });
+                    }
+                    const filepath = path.join(uploadsDir, filename);
+                    fs.writeFileSync(filepath, file.buffer);
+                    user.profile_image = `/uploads/${filename}`;
+                }
+            }
+
+            if (user.password && typeof user.password === 'string' && user.password.trim() !== '') {
                 const salt = await bcrypt.genSalt(10);
                 user.password = await bcrypt.hash(user.password, salt);
+            } else {
+                delete user.password;
             }
+
             const result = await Auth.updateUser(userId, user);
             if (result) {
                 res.status(200).json({ result, success: true });
@@ -112,7 +156,7 @@ module.exports = function (app) {
     });
 
     // Delete user (token required)
-    router.delete('/delete/:id', fetchApi, async function (req, res) {
+    router.delete('/delete/:id', fetchApi, requireSuperAdmin, async function (req, res) {
         try {
             const userId = req.params.id;
             const result = await Auth.deleteUser(userId);

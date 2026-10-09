@@ -2,7 +2,20 @@ import React, { useContext, useEffect, useState, useMemo } from "react";
 import { Link, useParams } from "react-router-dom";
 import stockManagementApis from "../apis/StockManagementApis";
 import "bootstrap/dist/css/bootstrap.min.css";
-import { Button, Card, Col, Container, Form, Modal, Row, Badge, Table, InputGroup, Pagination, Spinner } from "react-bootstrap";
+import {
+  Button,
+  Card,
+  Col,
+  Container,
+  Form,
+  Modal,
+  Row,
+  Badge,
+  Table,
+  InputGroup,
+  Pagination,
+  Spinner,
+} from "react-bootstrap";
 import Main from "../layout/Main";
 import { AuthContext } from "../context/AuthProvider";
 import { toast, ToastContainer } from "react-toastify";
@@ -14,191 +27,201 @@ import moment from "moment";
 const PURPLE = "#534AB7";
 const TEAL = "#1D9E75";
 
-export default function VendorDetailPage() {
+export default function EmployeeDetailPage() {
   const { id } = useParams();
   const { permissions, loginData } = useContext(AuthContext);
-  const [vendor, setVendor] = useState(null);
+
+  const [employee, setEmployee] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [show, setShow] = useState(false);
-  const [selectedVendor, setSelectedVendor] = useState({});
-  const [branches, setBranches] = useState([]);
-  const [gstValidation, setGstValidation] = useState(null);
-  const [phoneValidation, setPhoneValidation] = useState(null);
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [editData, setEditData] = useState({ name: "", department: "", status: "active" });
   const [validated, setValidated] = useState(false);
 
-  // ─── Purchase Orders state ───
-  const [orders, setOrders] = useState([]);
-  const [ordersLoading, setOrdersLoading] = useState(true);
+  // ─── Issues state ───
+  const [issues, setIssues] = useState([]);
+  const [issuesLoading, setIssuesLoading] = useState(true);
   const [selectedMonth, setSelectedMonth] = useState("all");
   const [searchTerm, setSearchTerm] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
   const rowsPerPage = 8;
 
-  const handleVendorData = async (vendorId) => {
+  const fetchEmployeeData = async (employeeId) => {
     try {
-      const result = await stockManagementApis.getVendorById(vendorId);
-      if (result && result.length > 0) {
-        setVendor(result[0]);
-        setSelectedVendor(result[0]);
+      const result = await stockManagementApis.getEmployeeById(employeeId);
+      if (result) {
+        setEmployee(result);
+        setEditData({
+          name: result.name || "",
+          department: result.department || "",
+          status: result.status === true || result.status === "active" ? "active" : "inactive",
+        });
       } else {
-        toast.error("No vendor record found.");
+        toast.error("Employee not found.");
       }
     } catch (error) {
-      console.error("Error fetching vendor data", error);
+      console.error("Error fetching employee details", error);
+      toast.error("Failed to load employee details.");
     } finally {
       setLoading(false);
     }
   };
 
-  const fetchVendorOrders = async (vendorId) => {
+  const fetchEmployeeIssues = async (employeeId) => {
     try {
-      setOrdersLoading(true);
-      const result = await stockManagementApis.getVendorOrders(vendorId);
-      setOrders(Array.isArray(result) ? result : []);
+      setIssuesLoading(true);
+      const result = await stockManagementApis.getEmployeeIssues(employeeId);
+      setIssues(Array.isArray(result) ? result : []);
     } catch (error) {
-      console.error("Error fetching vendor orders", error);
-      setOrders([]);
+      console.error("Error fetching employee issues", error);
+      setIssues([]);
     } finally {
-      setOrdersLoading(false);
+      setIssuesLoading(false);
     }
   };
 
   useEffect(() => {
     if (id) {
-      handleVendorData(id);
-      fetchVendorOrders(id);
+      fetchEmployeeData(id);
+      fetchEmployeeIssues(id);
     } else {
       setLoading(false);
-      setOrdersLoading(false);
+      setIssuesLoading(false);
     }
   }, [id]);
-
-  useEffect(() => {
-    const handleGetBranches = async () => {
-      try {
-        const result = await stockManagementApis.getBranch();
-        setBranches(result || []);
-      } catch (error) {
-        setBranches([]);
-      }
-    };
-    handleGetBranches();
-  }, []);
 
   const hasUpdatePermission =
     loginData?.role_name === "Admin" ||
     loginData?.role_name === "Super Admin" ||
     permissions?.some((role) => role.name === "Admin" || role.name === "Super Admin");
 
-  // ─── Month filtering & aggregations ───
+  // ─── Month Filtering & Aggregations ───
   const availableMonths = useMemo(() => {
     const monthsSet = new Set();
-    orders.forEach((o) => {
-      if (o.order_date) {
-        const ym = moment(o.order_date).format("YYYY-MM");
+    issues.forEach((iss) => {
+      if (iss.issue_date) {
+        const ym = moment(iss.issue_date).format("YYYY-MM");
         monthsSet.add(ym);
       }
     });
     return Array.from(monthsSet).sort().reverse();
-  }, [orders]);
+  }, [issues]);
 
-  const filteredOrders = useMemo(() => {
-    return orders.filter((o) => {
+  const filteredIssues = useMemo(() => {
+    return issues.filter((iss) => {
       // Month Filter
       if (selectedMonth !== "all") {
-        const ym = o.order_date ? moment(o.order_date).format("YYYY-MM") : "";
+        const ym = iss.issue_date ? moment(iss.issue_date).format("YYYY-MM") : "";
         if (ym !== selectedMonth) return false;
       }
       // Search Filter
       if (searchTerm.trim()) {
         const term = searchTerm.toLowerCase();
-        const poNum = String(o.order_number || "").toLowerCase();
-        const invNum = String(o.invoice_number || "").toLowerCase();
-        const itemsText = (o.line_items || [])
-          .map((i) => String(i.product_name || "").toLowerCase())
-          .join(" ");
-        return poNum.includes(term) || invNum.includes(term) || itemsText.includes(term);
+        const pName = String(iss.product_name || "").toLowerCase();
+        const desc = String(iss.description || "").toLowerCase();
+        const userName = String(iss.user_name || "").toLowerCase();
+        const branchName = String(iss.branch_name || "").toLowerCase();
+        const issId = String(iss.id || "").toLowerCase();
+        return (
+          pName.includes(term) ||
+          desc.includes(term) ||
+          userName.includes(term) ||
+          branchName.includes(term) ||
+          issId.includes(term)
+        );
       }
       return true;
     });
-  }, [orders, selectedMonth, searchTerm]);
-
-  const filteredTotalSpend = useMemo(() => {
-    return filteredOrders.reduce((sum, o) => sum + parseFloat(o.total_amount || 0), 0);
-  }, [filteredOrders]);
+  }, [issues, selectedMonth, searchTerm]);
 
   const filteredTotalUnits = useMemo(() => {
-    return filteredOrders.reduce((sum, o) => sum + parseFloat(o.total_quantity || 0), 0);
-  }, [filteredOrders]);
+    return filteredIssues.reduce((sum, iss) => sum + parseFloat(iss.quantity || 0), 0);
+  }, [filteredIssues]);
 
-  const allTimeSpend = useMemo(() => {
-    return orders.reduce((sum, o) => sum + parseFloat(o.total_amount || 0), 0) || parseFloat(vendor?.total_purchase || 0);
-  }, [orders, vendor]);
+  const allTimeTotalUnits = useMemo(() => {
+    return issues.reduce((sum, iss) => sum + parseFloat(iss.quantity || 0), 0) || parseFloat(employee?.total_issued_items || 0);
+  }, [issues, employee]);
 
-  const allTimeOrdersCount = orders.length || parseInt(vendor?.total_orders || 0, 10);
+  const allTimeIssuesCount = issues.length || parseInt(employee?.total_issues_count || 0, 10);
 
-  const totalPages = Math.ceil(filteredOrders.length / rowsPerPage) || 1;
-  const paginatedOrders = useMemo(() => {
+  // Most issued product calculation
+  const mostIssuedProduct = useMemo(() => {
+    if (!issues || issues.length === 0) return null;
+    const tally = {};
+    issues.forEach((iss) => {
+      const p = iss.product_name || "Unknown Product";
+      tally[p] = (tally[p] || 0) + parseFloat(iss.quantity || 0);
+    });
+    let topProduct = null;
+    let maxQty = 0;
+    Object.entries(tally).forEach(([name, qty]) => {
+      if (qty > maxQty) {
+        maxQty = qty;
+        topProduct = { name, quantity: qty };
+      }
+    });
+    return topProduct;
+  }, [issues]);
+
+  const totalPages = Math.ceil(filteredIssues.length / rowsPerPage) || 1;
+  const paginatedIssues = useMemo(() => {
     const start = (currentPage - 1) * rowsPerPage;
-    return filteredOrders.slice(start, start + rowsPerPage);
-  }, [filteredOrders, currentPage]);
+    return filteredIssues.slice(start, start + rowsPerPage);
+  }, [filteredIssues, currentPage]);
 
+  // ─── Export to Excel ───
   const handleExportExcel = () => {
-    if (!filteredOrders || filteredOrders.length === 0) {
-      toast.warning("No purchase orders to export for the selected filter.");
+    if (!filteredIssues || filteredIssues.length === 0) {
+      toast.warning("No issued items to export for the selected filter.");
       return;
     }
 
-    const exportRows = filteredOrders.map((ord, idx) => {
-      const itemsList = (ord.line_items || [])
-        .map((item) => `${item.product_name} (Qty: ${item.quantity}, ₹${item.price})`)
-        .join("; ");
-
-      return {
-        "S.No": idx + 1,
-        "PO Number": ord.order_number || ord.id,
-        "Invoice Number": ord.invoice_number || "—",
-        "Order Date": ord.order_date ? moment(ord.order_date).format("YYYY-MM-DD") : "—",
-        "Vendor Name": vendor?.name || "Vendor",
-        "Items Purchased": itemsList || "—",
-        "Items Count": ord.item_count || (ord.line_items?.length || 0),
-        "Total Quantity": parseFloat(ord.total_quantity || 0),
-        "Order Amount (₹)": parseFloat(ord.total_amount || 0),
-        "Created By": ord.created_by_name || "Staff",
-        "Status": (ord.status === "active" ? "Completed" : ord.status || "Active").toUpperCase(),
-      };
-    });
+    const exportRows = filteredIssues.map((iss, idx) => ({
+      "S.No": idx + 1,
+      "Issue ID": iss.id ? iss.id.slice(0, 8) : "—",
+      "Issue Date": iss.issue_date ? moment(iss.issue_date).format("YYYY-MM-DD") : "—",
+      "Employee Name": employee?.name || "Staff",
+      "Department": employee?.department || "General Staff",
+      "Product Name": iss.product_name || "—",
+      "Quantity Issued": parseFloat(iss.quantity || 0),
+      "Unit": iss.unit || "Units",
+      "Purpose / Remarks": iss.description || "—",
+      "Issued By": iss.user_name || "Admin Staff",
+      "Branch": iss.branch_name || "Head Office",
+      "Status": (iss.status || "Active").toUpperCase(),
+    }));
 
     // Summary Row
     exportRows.push({
       "S.No": "TOTAL",
-      "PO Number": `${filteredOrders.length} Orders`,
-      "Invoice Number": "",
-      "Order Date": "",
-      "Vendor Name": "",
-      "Items Purchased": "",
-      "Items Count": "",
-      "Total Quantity": filteredTotalUnits,
-      "Order Amount (₹)": filteredTotalSpend,
-      "Created By": "",
+      "Issue ID": `${filteredIssues.length} Records`,
+      "Issue Date": "",
+      "Employee Name": "",
+      "Department": "",
+      "Product Name": "",
+      "Quantity Issued": filteredTotalUnits,
+      "Unit": "Units",
+      "Purpose / Remarks": "",
+      "Issued By": "",
+      "Branch": "",
       "Status": "",
     });
 
     const worksheet = XLSX.utils.json_to_sheet(exportRows);
     const workbook = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(workbook, worksheet, "Purchase Orders");
+    XLSX.utils.book_append_sheet(workbook, worksheet, "Issued Items");
 
     worksheet["!cols"] = [
       { wch: 8 },
-      { wch: 16 },
-      { wch: 18 },
       { wch: 14 },
-      { wch: 28 },
-      { wch: 45 },
-      { wch: 12 },
-      { wch: 15 },
-      { wch: 18 },
+      { wch: 14 },
+      { wch: 24 },
+      { wch: 20 },
+      { wch: 30 },
       { wch: 16 },
+      { wch: 12 },
+      { wch: 35 },
+      { wch: 20 },
+      { wch: 22 },
       { wch: 14 },
     ];
 
@@ -207,91 +230,79 @@ export default function VendorDetailPage() {
       type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
     });
     const monthSuffix = selectedMonth !== "all" ? `_${selectedMonth}` : "_All_Time";
-    const cleanVendorName = (vendor?.name || "Vendor").trim().replace(/[^a-zA-Z0-9_-]/g, "_");
-    saveAs(blob, `Purchase_Orders_${cleanVendorName}${monthSuffix}.xlsx`);
-    toast.success(`Exported ${filteredOrders.length} purchase orders to Excel!`);
+    const cleanEmpName = (employee?.name || "Employee").trim().replace(/[^a-zA-Z0-9_-]/g, "_");
+    saveAs(blob, `Issued_Items_${cleanEmpName}${monthSuffix}.xlsx`);
+    toast.success(`Exported ${filteredIssues.length} issued records to Excel!`);
   };
 
-  const handleClose = () => {
-    setShow(false);
+  const handleEditModalClose = () => {
+    setShowEditModal(false);
     setValidated(false);
-    setSelectedVendor(vendor || {});
-    setGstValidation(null);
-    setPhoneValidation(null);
   };
 
-  const handleShow = () => setShow(true);
+  const handleEditModalShow = () => setShowEditModal(true);
 
-  const handleInputChange = (event) => {
-    const { name, value } = event.target;
-
-    if (name === "gst_no") {
-      const isValidLengthGST = value.length === 15;
-      setGstValidation(isValidLengthGST ? null : "Please enter a valid 15-character GSTIN.");
-    }
-
-    if (name === "mobile") {
-      const isValidLength = value.length === 10;
-      const isNumeric = /^\d+$/.test(value);
-      setPhoneValidation(isValidLength && isNumeric ? null : "Enter a valid 10-digit mobile number.");
-    }
-
-    setSelectedVendor((prev) => ({
-      ...prev,
-      [name]: value,
-    }));
+  const handleEditChange = (e) => {
+    const { name, value } = e.target;
+    setEditData((prev) => ({ ...prev, [name]: value }));
   };
 
-  const handleSubmit = async (event) => {
-    event.preventDefault();
-    const form = event.currentTarget;
-
-    if (form.checkValidity() === false || gstValidation !== null || phoneValidation !== null) {
-      event.stopPropagation();
+  const handleEditSubmit = async (e) => {
+    e.preventDefault();
+    const form = e.currentTarget;
+    if (form.checkValidity() === false) {
+      e.stopPropagation();
       setValidated(true);
       return;
     }
 
     try {
-      const payload = { ...selectedVendor, updated_by: loginData?.id };
-      await stockManagementApis.updateVendor(selectedVendor.id, payload);
-      toast.success("Vendor profile updated successfully!");
-      handleClose();
-      handleVendorData(id);
+      const payload = {
+        name: editData.name,
+        department: editData.department,
+        status: editData.status === "active",
+        updated_by: loginData?.id,
+      };
+      await stockManagementApis.updateEmployee(id, payload);
+      toast.success("Employee updated successfully!");
+      handleEditModalClose();
+      fetchEmployeeData(id);
     } catch (error) {
-      toast.error("Failed to update vendor.");
+      console.error("Error updating employee", error);
+      toast.error("Failed to update employee.");
     }
   };
 
   if (loading) {
     return (
       <Main>
-        <div className="d-flex justify-content-center align-items-center" style={{ height: "60vh" }}>
-          <div className="spinner-border text-primary" role="status">
-            <span className="visually-hidden">Loading...</span>
+        <div className="d-flex justify-content-center align-items-center" style={{ minHeight: "70vh" }}>
+          <div className="text-center">
+            <Spinner animation="border" style={{ color: PURPLE }} />
+            <div className="mt-3 text-muted" style={{ fontWeight: 600 }}>
+              Loading employee details...
+            </div>
           </div>
         </div>
       </Main>
     );
   }
 
-  if (!vendor) {
+  if (!employee) {
     return (
       <Main>
-        <Container className="mt-5 text-center">
-          <i className="fa-solid fa-store-slash fs-1 text-muted mb-3 d-block"></i>
-          <h5>No vendor dossier found.</h5>
-          <Link to="/vendor">
-            <Button variant="outline-primary" className="mt-2">
-              Back to Suppliers
-            </Button>
+        <Container className="py-5 text-center">
+          <h4>Employee Record Not Found</h4>
+          <p className="text-muted">The employee requested does not exist or may have been deleted.</p>
+          <Link to="/employee" className="btn btn-primary" style={{ background: PURPLE, borderColor: PURPLE }}>
+            Back to Employees Directory
           </Link>
         </Container>
       </Main>
     );
   }
 
-  const isActive = vendor.status === "active" || vendor.status === true;
+  const isActive = employee.status === "active" || employee.status === true;
 
   return (
     <Main>
@@ -301,19 +312,19 @@ export default function VendorDetailPage() {
         {/* ── Top Bar ── */}
         <div className="d-flex justify-content-between align-items-center mb-3">
           <div style={{ fontSize: "13px", color: "#64748b" }}>
-            <Link to="/Home" style={{ color: PURPLE, textDecoration: "none", fontWeight: 600 }}>
+            <Link to="/home" style={{ color: PURPLE, textDecoration: "none", fontWeight: 600 }}>
               Home
             </Link>{" "}
             /{" "}
-            <Link to="/vendor" style={{ color: PURPLE, textDecoration: "none", fontWeight: 600 }}>
-              Suppliers
+            <Link to="/employee" style={{ color: PURPLE, textDecoration: "none", fontWeight: 600 }}>
+              Employees
             </Link>{" "}
-            / <span style={{ color: "#0f172a", fontWeight: 600 }}>{vendor.name}</span>
+            / <span style={{ color: "#0f172a", fontWeight: 600 }}>{employee.name}</span>
           </div>
 
           <div className="d-flex gap-2">
             <Link
-              to="/vendor"
+              to="/employee"
               className="btn btn-sm"
               style={{
                 background: "#ffffff",
@@ -329,7 +340,7 @@ export default function VendorDetailPage() {
 
             {hasUpdatePermission && (
               <button
-                onClick={handleShow}
+                onClick={handleEditModalShow}
                 className="btn btn-sm d-flex align-items-center gap-2"
                 style={{
                   background: PURPLE,
@@ -340,15 +351,15 @@ export default function VendorDetailPage() {
                   boxShadow: "0 2px 6px rgba(83, 74, 183, 0.25)",
                 }}
               >
-                <i className="fa-regular fa-pen-to-square"></i> Edit Vendor
+                <i className="fa-regular fa-pen-to-square"></i> Edit Employee
               </button>
             )}
           </div>
         </div>
 
-        {/* ── Hero Supplier Card ── */}
+        {/* ── Hero Employee Profile Card ── */}
         <Card style={{ border: "1px solid #e2e8f0", borderRadius: "14px", overflow: "hidden", marginBottom: "20px" }}>
-          <div style={{ height: "6px", background: `linear-gradient(90deg, ${TEAL}, #38bdf8)` }} />
+          <div style={{ height: "6px", background: `linear-gradient(90deg, ${PURPLE}, #38bdf8)` }} />
           <div className="p-4" style={{ background: "#ffffff" }}>
             <div className="d-flex justify-content-between align-items-center flex-wrap gap-3">
               <div className="d-flex align-items-center gap-3">
@@ -356,21 +367,21 @@ export default function VendorDetailPage() {
                   style={{
                     width: "60px",
                     height: "60px",
-                    borderRadius: "12px",
-                    background: "#e1f5ee",
-                    color: TEAL,
+                    borderRadius: "14px",
+                    background: "#ede9fe",
+                    color: PURPLE,
                     display: "flex",
                     alignItems: "center",
                     justifyContent: "center",
                     fontSize: "26px",
-                    border: "1px solid #a7f3d0",
+                    border: "1px solid #c7d2fe",
                   }}
                 >
-                  <i className="fa-solid fa-store"></i>
+                  <i className="fa-solid fa-user-tie"></i>
                 </div>
                 <div>
-                  <div className="d-flex align-items-center gap-3">
-                    <h4 style={{ margin: 0, fontWeight: 700, color: "#0f172a" }}>{vendor.name}</h4>
+                  <div className="d-flex align-items-center gap-3 flex-wrap">
+                    <h4 style={{ margin: 0, fontWeight: 700, color: "#0f172a" }}>{employee.name}</h4>
                     <span
                       style={{
                         fontSize: "11px",
@@ -381,29 +392,42 @@ export default function VendorDetailPage() {
                         color: isActive ? "#15803d" : "#b91c1c",
                       }}
                     >
-                      {isActive ? "ACTIVE PARTNER" : "INACTIVE SUPPLIER"}
+                      {isActive ? "ACTIVE EMPLOYEE" : "INACTIVE"}
+                    </span>
+                    <span
+                      style={{
+                        fontSize: "12px",
+                        fontWeight: 600,
+                        padding: "3px 10px",
+                        borderRadius: "6px",
+                        background: "#eeedfe",
+                        color: PURPLE,
+                        border: "1px solid #c7d2fe",
+                      }}
+                    >
+                      <i className="fa-solid fa-briefcase me-1"></i>
+                      {employee.department || "General Staff"}
                     </span>
                   </div>
                   <div className="d-flex align-items-center gap-3 mt-1 flex-wrap" style={{ fontSize: "13px", color: "#64748b" }}>
                     <span>
-                      <i className="fa-solid fa-receipt me-1"></i> GSTIN:{" "}
-                      <span style={{ fontFamily: "monospace", fontWeight: 600, color: "#0f172a" }}>
-                        {vendor.gst_no || "UNREGISTERED"}
+                      <i className="fa-regular fa-calendar me-1"></i> Registered:{" "}
+                      <span style={{ fontWeight: 600, color: "#0f172a" }}>
+                        {employee.created_at ? moment(employee.created_at).format("DD MMM YYYY") : "Active Member"}
                       </span>
                     </span>
                     <span>•</span>
                     <span>
-                      <i className="fa-solid fa-phone me-1"></i> {vendor.mobile || "No phone"}
-                    </span>
-                    <span>•</span>
-                    <span>
-                      <i className="fa-solid fa-location-dot me-1"></i> {vendor.city || "—"}, {vendor.state || "—"}
+                      <i className="fa-solid fa-id-badge me-1"></i> ID:{" "}
+                      <span style={{ fontFamily: "monospace", color: "#0f172a", fontWeight: 600 }}>
+                        {employee.id.slice(0, 8)}
+                      </span>
                     </span>
                   </div>
                 </div>
               </div>
 
-              {/* Total Purchase Spend */}
+              {/* Total Items Received / Issues KPI */}
               <div
                 style={{
                   background: "#f8fafc",
@@ -414,13 +438,13 @@ export default function VendorDetailPage() {
                 }}
               >
                 <div style={{ fontSize: "11px", fontWeight: 700, color: "#64748b", textTransform: "uppercase" }}>
-                  Cumulative Spend
+                  Cumulative Items Received
                 </div>
                 <div style={{ fontSize: "24px", fontWeight: 800, color: "#0f172a", lineHeight: 1.2 }}>
-                  ₹{allTimeSpend.toLocaleString("en-IN", { minimumFractionDigits: 2 })}
+                  {allTimeTotalUnits.toLocaleString("en-IN")} <span style={{ fontSize: "14px", fontWeight: 600, color: "#64748b" }}>units</span>
                 </div>
                 <div style={{ fontSize: "11px", color: TEAL, fontWeight: 600, marginTop: "2px" }}>
-                  {allTimeOrdersCount} purchase orders placed
+                  {allTimeIssuesCount} provision orders fulfilled
                 </div>
               </div>
             </div>
@@ -433,37 +457,59 @@ export default function VendorDetailPage() {
             <Card style={{ border: "1px solid #e2e8f0", borderRadius: "14px", height: "100%", overflow: "hidden" }}>
               <div className="p-3 border-bottom" style={{ background: "#ffffff" }}>
                 <h6 style={{ margin: 0, fontWeight: 700, color: "#0f172a", fontSize: "14px" }}>
-                  <i className="fa-solid fa-briefcase me-2" style={{ color: PURPLE }}></i>
-                  Commercial Information
+                  <i className="fa-solid fa-address-card me-2" style={{ color: PURPLE }}></i>
+                  Professional Details
                 </h6>
               </div>
               <Card.Body className="p-4" style={{ background: "#ffffff" }}>
-                <div className="mb-3">
-                  <div style={{ fontSize: "11.5px", fontWeight: 600, color: "#64748b", textTransform: "uppercase" }}>
-                    Vendor Business Name
-                  </div>
-                  <div style={{ fontSize: "15px", fontWeight: 600, color: "#0f172a", marginTop: "2px" }}>
-                    {vendor.name}
-                  </div>
-                </div>
+                <Row className="g-3 mb-3">
+                  <Col xs={6}>
+                    <div style={{ fontSize: "11.5px", fontWeight: 600, color: "#64748b", textTransform: "uppercase" }}>
+                      Employee Full Name
+                    </div>
+                    <div style={{ fontSize: "15px", fontWeight: 600, color: "#0f172a", marginTop: "2px" }}>
+                      {employee.name}
+                    </div>
+                  </Col>
+                  <Col xs={6}>
+                    <div style={{ fontSize: "11.5px", fontWeight: 600, color: "#64748b", textTransform: "uppercase" }}>
+                      Assigned Department
+                    </div>
+                    <div style={{ fontSize: "14px", fontWeight: 600, color: PURPLE, marginTop: "2px" }}>
+                      {employee.department || "General Staff"}
+                    </div>
+                  </Col>
+                </Row>
 
-                <div className="mb-3">
-                  <div style={{ fontSize: "11.5px", fontWeight: 600, color: "#64748b", textTransform: "uppercase" }}>
-                    GST Identification Number (GSTIN)
-                  </div>
-                  <div style={{ fontSize: "14px", fontFamily: "monospace", fontWeight: 600, color: PURPLE, marginTop: "2px" }}>
-                    {vendor.gst_no || "Unregistered / Composition"}
-                  </div>
-                </div>
-
-                <div className="mb-3">
-                  <div style={{ fontSize: "11.5px", fontWeight: 600, color: "#64748b", textTransform: "uppercase" }}>
-                    Assigned Primary Branch
-                  </div>
-                  <div style={{ fontSize: "14px", color: "#0f172a", marginTop: "2px" }}>
-                    {vendor.branch_name || "Head Office Ajmer"}
-                  </div>
-                </div>
+                <Row className="g-3">
+                  <Col xs={6}>
+                    <div style={{ fontSize: "11.5px", fontWeight: 600, color: "#64748b", textTransform: "uppercase" }}>
+                      Employment Status
+                    </div>
+                    <div style={{ marginTop: "4px" }}>
+                      <span
+                        style={{
+                          fontSize: "11.5px",
+                          fontWeight: 700,
+                          padding: "2px 8px",
+                          borderRadius: "99px",
+                          background: isActive ? "#dcfce7" : "#fee2e2",
+                          color: isActive ? "#15803d" : "#b91c1c",
+                        }}
+                      >
+                        {isActive ? "Active" : "Inactive"}
+                      </span>
+                    </div>
+                  </Col>
+                  <Col xs={6}>
+                    <div style={{ fontSize: "11.5px", fontWeight: 600, color: "#64748b", textTransform: "uppercase" }}>
+                      Record ID
+                    </div>
+                    <div style={{ fontSize: "13px", fontFamily: "monospace", color: "#334155", marginTop: "2px" }}>
+                      {employee.id}
+                    </div>
+                  </Col>
+                </Row>
               </Card.Body>
             </Card>
           </Col>
@@ -472,46 +518,60 @@ export default function VendorDetailPage() {
             <Card style={{ border: "1px solid #e2e8f0", borderRadius: "14px", height: "100%", overflow: "hidden" }}>
               <div className="p-3 border-bottom" style={{ background: "#ffffff" }}>
                 <h6 style={{ margin: 0, fontWeight: 700, color: "#0f172a", fontSize: "14px" }}>
-                  <i className="fa-solid fa-address-book me-2" style={{ color: TEAL }}></i>
-                  Contact & Registered Address
+                  <i className="fa-solid fa-chart-pie me-2" style={{ color: TEAL }}></i>
+                  Provisioning Analytics
                 </h6>
               </div>
               <Card.Body className="p-4" style={{ background: "#ffffff" }}>
                 <Row className="g-3 mb-3">
                   <Col xs={6}>
                     <div style={{ fontSize: "11.5px", fontWeight: 600, color: "#64748b", textTransform: "uppercase" }}>
-                      Contact Phone
+                      Total Units Received
                     </div>
-                    <div style={{ fontSize: "14px", fontWeight: 600, color: "#0f172a", marginTop: "2px" }}>
-                      {vendor.mobile || "—"}
+                    <div style={{ fontSize: "18px", fontWeight: 800, color: "#0f172a", marginTop: "2px" }}>
+                      {allTimeTotalUnits.toLocaleString("en-IN")} units
                     </div>
                   </Col>
                   <Col xs={6}>
                     <div style={{ fontSize: "11.5px", fontWeight: 600, color: "#64748b", textTransform: "uppercase" }}>
-                      Jurisdiction City & State
+                      Total Provision Events
                     </div>
-                    <div style={{ fontSize: "14px", color: "#0f172a", marginTop: "2px" }}>
-                      {vendor.city || "—"}, {vendor.state || "—"}
+                    <div style={{ fontSize: "18px", fontWeight: 800, color: TEAL, marginTop: "2px" }}>
+                      {allTimeIssuesCount} transactions
                     </div>
                   </Col>
                 </Row>
 
                 <div>
                   <div style={{ fontSize: "11.5px", fontWeight: 600, color: "#64748b", textTransform: "uppercase", marginBottom: "4px" }}>
-                    Full Physical Address
+                    Most Frequently Issued Product
                   </div>
                   <div
                     style={{
                       background: "#f8fafc",
                       border: "1px solid #e2e8f0",
                       borderRadius: "8px",
-                      padding: "12px",
+                      padding: "10px 14px",
                       fontSize: "13px",
                       color: "#334155",
-                      lineHeight: 1.5,
+                      display: "flex",
+                      justifyContent: "space-between",
+                      alignItems: "center",
                     }}
                   >
-                    {vendor.address || "No detailed address entered on record."}
+                    {mostIssuedProduct ? (
+                      <>
+                        <span style={{ fontWeight: 600, color: "#0f172a" }}>
+                          <i className="fa-solid fa-box me-2" style={{ color: PURPLE }}></i>
+                          {mostIssuedProduct.name}
+                        </span>
+                        <span style={{ fontWeight: 700, color: PURPLE }}>
+                          {mostIssuedProduct.quantity} units total
+                        </span>
+                      </>
+                    ) : (
+                      <span style={{ color: "#94a3b8" }}>No items issued yet.</span>
+                    )}
                   </div>
                 </div>
               </Card.Body>
@@ -519,7 +579,7 @@ export default function VendorDetailPage() {
           </Col>
         </Row>
 
-        {/* ── Purchase Orders & Procurement Section ── */}
+        {/* ── Issued Items & Provisions Section ── */}
         <Card
           style={{
             border: "1px solid #e2e8f0",
@@ -548,10 +608,10 @@ export default function VendorDetailPage() {
                       fontSize: "16px",
                     }}
                   >
-                    <i className="fa-solid fa-cart-shopping"></i>
+                    <i className="fa-solid fa-hand-holding-hand"></i>
                   </div>
                   <h5 style={{ margin: 0, fontWeight: 700, color: "#0f172a" }}>
-                    Purchase Orders & Procurement History
+                    Issued Items & Provision History
                   </h5>
                   <Badge
                     bg="secondary"
@@ -564,11 +624,11 @@ export default function VendorDetailPage() {
                       border: "1px solid #e2e8f0",
                     }}
                   >
-                    {filteredOrders.length} {filteredOrders.length === 1 ? "Order" : "Orders"}
+                    {filteredIssues.length} {filteredIssues.length === 1 ? "Record" : "Records"}
                   </Badge>
                 </div>
                 <p style={{ margin: "4px 0 0 44px", fontSize: "12.5px", color: "#64748b" }}>
-                  Items ordered and fulfilled by {vendor.name} with monthly filtering and instant Excel export.
+                  Items, stationary, and assets issued to {employee.name} with monthly filtering and instant Excel export.
                 </p>
               </div>
 
@@ -576,7 +636,7 @@ export default function VendorDetailPage() {
               <div className="d-flex align-items-center gap-2 flex-wrap">
                 <Button
                   onClick={handleExportExcel}
-                  disabled={ordersLoading || filteredOrders.length === 0}
+                  disabled={issuesLoading || filteredIssues.length === 0}
                   style={{
                     background: "#059669",
                     borderColor: "#059669",
@@ -590,11 +650,11 @@ export default function VendorDetailPage() {
                     gap: "8px",
                     boxShadow: "0 2px 4px rgba(5, 150, 105, 0.2)",
                   }}
-                  title="Download filtered purchase orders report as Excel spreadsheet"
+                  title="Download filtered issued items report as Excel spreadsheet"
                 >
                   <i className="fa-solid fa-file-excel"></i>
                   <span>Download Excel Report</span>
-                  {filteredOrders.length > 0 && (
+                  {filteredIssues.length > 0 && (
                     <span
                       style={{
                         background: "rgba(255,255,255,0.25)",
@@ -603,13 +663,13 @@ export default function VendorDetailPage() {
                         fontSize: "11px",
                       }}
                     >
-                      {filteredOrders.length}
+                      {filteredIssues.length}
                     </span>
                   )}
                 </Button>
 
                 <Link
-                  to="/addOrder"
+                  to="/issue"
                   className="btn btn-sm"
                   style={{
                     background: PURPLE,
@@ -624,7 +684,7 @@ export default function VendorDetailPage() {
                   }}
                 >
                   <i className="fa-solid fa-plus"></i>
-                  <span>New PO</span>
+                  <span>Issue Item</span>
                 </Link>
               </div>
             </div>
@@ -665,7 +725,7 @@ export default function VendorDetailPage() {
                       cursor: "pointer",
                     }}
                   >
-                    <option value="all">All Months (All Time - {orders.length} POs)</option>
+                    <option value="all">All Months (All Time - {issues.length} records)</option>
                     {availableMonths.map((ym) => (
                       <option key={ym} value={ym}>
                         {moment(ym, "YYYY-MM").format("MMMM YYYY")}
@@ -674,14 +734,14 @@ export default function VendorDetailPage() {
                   </Form.Select>
                 </div>
 
-                {/* Search PO / Item */}
+                {/* Search Item / Purpose */}
                 <div style={{ minWidth: "240px", flex: 1 }}>
                   <InputGroup size="sm">
                     <InputGroup.Text style={{ background: "#ffffff", borderColor: "#cbd5e1", color: "#94a3b8" }}>
                       <i className="fa-solid fa-magnifying-glass"></i>
                     </InputGroup.Text>
                     <Form.Control
-                      placeholder="Search PO #, invoice #, item name..."
+                      placeholder="Search product, purpose, issued by..."
                       value={searchTerm}
                       onChange={(e) => {
                         setSearchTerm(e.target.value);
@@ -733,19 +793,19 @@ export default function VendorDetailPage() {
               <div className="d-flex align-items-center gap-3">
                 <div style={{ textAlign: "right" }}>
                   <span style={{ fontSize: "11px", color: "#64748b", textTransform: "uppercase", fontWeight: 700 }}>
-                    Period Spend
+                    Period Units
                   </span>
                   <div style={{ fontSize: "16px", fontWeight: 800, color: PURPLE }}>
-                    ₹{filteredTotalSpend.toLocaleString("en-IN", { minimumFractionDigits: 2 })}
+                    {filteredTotalUnits.toLocaleString("en-IN")} units
                   </div>
                 </div>
                 <div style={{ width: "1px", height: "30px", background: "#e2e8f0" }} />
                 <div style={{ textAlign: "right" }}>
                   <span style={{ fontSize: "11px", color: "#64748b", textTransform: "uppercase", fontWeight: 700 }}>
-                    Total Units
+                    Transactions
                   </span>
                   <div style={{ fontSize: "16px", fontWeight: 800, color: "#0f172a" }}>
-                    {filteredTotalUnits.toLocaleString("en-IN")}
+                    {filteredIssues.length}
                   </div>
                 </div>
               </div>
@@ -754,14 +814,14 @@ export default function VendorDetailPage() {
 
           {/* Table Body */}
           <div className="p-0">
-            {ordersLoading ? (
+            {issuesLoading ? (
               <div className="text-center py-5">
                 <Spinner animation="border" role="status" style={{ color: PURPLE }} />
                 <div className="mt-2" style={{ fontSize: "13px", color: "#64748b" }}>
-                  Loading purchase orders...
+                  Loading issued records...
                 </div>
               </div>
-            ) : filteredOrders.length === 0 ? (
+            ) : filteredIssues.length === 0 ? (
               <div className="text-center py-5 px-3">
                 <div
                   style={{
@@ -780,12 +840,12 @@ export default function VendorDetailPage() {
                   <i className="fa-regular fa-folder-open"></i>
                 </div>
                 <h6 style={{ fontWeight: 700, color: "#1e293b", margin: 0 }}>
-                  No Purchase Orders Found
+                  No Issued Items Found
                 </h6>
                 <p style={{ fontSize: "13px", color: "#64748b", maxWidth: "420px", margin: "6px auto 16px" }}>
                   {selectedMonth !== "all" || searchTerm
-                    ? "No purchase orders match your selected month or search criteria. Try selecting another month or clearing filters."
-                    : "No purchase orders have been recorded for this vendor yet."}
+                    ? "No records match your selected month or search criteria. Try choosing another month or clearing filters."
+                    : "No items have been issued to this employee yet."}
                 </p>
                 {selectedMonth !== "all" || searchTerm ? (
                   <Button
@@ -801,7 +861,7 @@ export default function VendorDetailPage() {
                   </Button>
                 ) : (
                   <Link
-                    to="/addOrder"
+                    to="/issue"
                     className="btn btn-sm btn-primary"
                     style={{
                       background: PURPLE,
@@ -811,7 +871,7 @@ export default function VendorDetailPage() {
                       fontSize: "13px",
                     }}
                   >
-                    Create First Purchase Order
+                    Issue First Item
                   </Link>
                 )}
               </div>
@@ -822,22 +882,25 @@ export default function VendorDetailPage() {
                     <thead style={{ background: "#f8fafc", borderBottom: "2px solid #e2e8f0" }}>
                       <tr>
                         <th style={{ color: "#475569", fontWeight: 700, fontSize: "11.5px", padding: "12px 16px" }}>
-                          PO NUMBER
+                          ISSUE ID
                         </th>
                         <th style={{ color: "#475569", fontWeight: 700, fontSize: "11.5px", padding: "12px 14px" }}>
-                          ORDER DATE
+                          DATE
                         </th>
-                        <th style={{ color: "#475569", fontWeight: 700, fontSize: "11.5px", padding: "12px 14px" }}>
-                          INVOICE NO
-                        </th>
-                        <th style={{ color: "#475569", fontWeight: 700, fontSize: "11.5px", padding: "12px 14px", minWidth: "260px" }}>
-                          ITEMS PURCHASED
+                        <th style={{ color: "#475569", fontWeight: 700, fontSize: "11.5px", padding: "12px 14px", minWidth: "220px" }}>
+                          ITEM / PRODUCT
                         </th>
                         <th style={{ color: "#475569", fontWeight: 700, fontSize: "11.5px", padding: "12px 14px", textAlign: "center" }}>
-                          TOTAL QTY
+                          QUANTITY
                         </th>
-                        <th style={{ color: "#475569", fontWeight: 700, fontSize: "11.5px", padding: "12px 14px", textAlign: "right" }}>
-                          TOTAL AMOUNT
+                        <th style={{ color: "#475569", fontWeight: 700, fontSize: "11.5px", padding: "12px 14px", minWidth: "200px" }}>
+                          PURPOSE / REMARKS
+                        </th>
+                        <th style={{ color: "#475569", fontWeight: 700, fontSize: "11.5px", padding: "12px 14px" }}>
+                          ISSUED BY
+                        </th>
+                        <th style={{ color: "#475569", fontWeight: 700, fontSize: "11.5px", padding: "12px 14px" }}>
+                          BRANCH
                         </th>
                         <th style={{ color: "#475569", fontWeight: 700, fontSize: "11.5px", padding: "12px 14px" }}>
                           STATUS
@@ -848,13 +911,13 @@ export default function VendorDetailPage() {
                       </tr>
                     </thead>
                     <tbody>
-                      {paginatedOrders.map((ord) => {
-                        const isCompleted = ord.status === "active" || ord.status === "completed";
+                      {paginatedIssues.map((iss) => {
+                        const isApproved = iss.status === "approved" || iss.status === "active";
                         return (
-                          <tr key={ord.id}>
+                          <tr key={iss.id}>
                             <td style={{ padding: "12px 16px" }}>
                               <Link
-                                to={`/orderDetailPage/${ord.id}`}
+                                to={`/issueDetailPage/${iss.id}`}
                                 style={{
                                   fontWeight: 700,
                                   color: PURPLE,
@@ -864,100 +927,27 @@ export default function VendorDetailPage() {
                                   gap: "6px",
                                 }}
                               >
-                                <i className="fa-solid fa-file-lines" style={{ fontSize: "12px" }}></i>
-                                {ord.order_number || ord.id.slice(0, 8)}
+                                <i className="fa-solid fa-receipt" style={{ fontSize: "12px" }}></i>
+                                {iss.id ? iss.id.slice(0, 8) : "—"}
                               </Link>
-                              {ord.created_by_name && (
-                                <div style={{ fontSize: "11px", color: "#94a3b8" }}>
-                                  By {ord.created_by_name}
-                                </div>
-                              )}
                             </td>
                             <td style={{ padding: "12px 14px", whiteSpace: "nowrap" }}>
                               <div style={{ fontWeight: 600, color: "#0f172a" }}>
-                                {ord.order_date ? moment(ord.order_date).format("DD MMM YYYY") : "—"}
+                                {iss.issue_date ? moment(iss.issue_date).format("DD MMM YYYY") : "—"}
                               </div>
                               <div style={{ fontSize: "11px", color: "#94a3b8" }}>
-                                {ord.order_date ? moment(ord.order_date).fromNow() : ""}
+                                {iss.issue_date ? moment(iss.issue_date).fromNow() : ""}
                               </div>
                             </td>
-                            <td style={{ padding: "12px 14px", whiteSpace: "nowrap" }}>
-                              {ord.invoice_number ? (
-                                <span
-                                  style={{
-                                    fontFamily: "monospace",
-                                    fontWeight: 600,
-                                    color: "#334155",
-                                    background: "#f1f5f9",
-                                    padding: "3px 8px",
-                                    borderRadius: "6px",
-                                    border: "1px solid #e2e8f0",
-                                    fontSize: "12px",
-                                  }}
-                                >
-                                  {ord.invoice_number}
-                                </span>
-                              ) : (
-                                <span style={{ color: "#94a3b8" }}>—</span>
-                              )}
-                            </td>
                             <td style={{ padding: "12px 14px" }}>
-                              {ord.line_items && ord.line_items.length > 0 ? (
-                                <div className="d-flex flex-wrap gap-1 align-items-center">
-                                  {ord.line_items.slice(0, 3).map((item, idx) => (
-                                    <span
-                                      key={idx}
-                                      style={{
-                                        fontSize: "11.5px",
-                                        padding: "3px 8px",
-                                        background: "#f8fafc",
-                                        border: "1px solid #e2e8f0",
-                                        borderRadius: "6px",
-                                        color: "#1e293b",
-                                        fontWeight: 500,
-                                        display: "inline-flex",
-                                        alignItems: "center",
-                                        gap: "4px",
-                                      }}
-                                    >
-                                      <span>{item.product_name}</span>
-                                      <span
-                                        style={{
-                                          color: PURPLE,
-                                          fontWeight: 700,
-                                          background: "#ede9fe",
-                                          padding: "0 4px",
-                                          borderRadius: "4px",
-                                          fontSize: "10.5px",
-                                        }}
-                                      >
-                                        ×{item.quantity}
-                                      </span>
-                                    </span>
-                                  ))}
-                                  {ord.line_items.length > 3 && (
-                                    <span
-                                      style={{
-                                        fontSize: "11px",
-                                        padding: "3px 7px",
-                                        background: "#e2e8f0",
-                                        borderRadius: "6px",
-                                        color: "#475569",
-                                        fontWeight: 600,
-                                        cursor: "help",
-                                      }}
-                                      title={ord.line_items
-                                        .map((i) => `${i.product_name} (×${i.quantity})`)
-                                        .join("\n")}
-                                    >
-                                      +{ord.line_items.length - 3} more
-                                    </span>
-                                  )}
+                              <div style={{ fontWeight: 600, color: "#0f172a", display: "flex", alignItems: "center", gap: "6px" }}>
+                                <i className="fa-solid fa-box-open" style={{ color: PURPLE, fontSize: "12px" }}></i>
+                                <span>{iss.product_name || "Unspecified Product"}</span>
+                              </div>
+                              {iss.unit && (
+                                <div style={{ fontSize: "11px", color: "#94a3b8", marginLeft: "18px" }}>
+                                  Unit: {iss.unit}
                                 </div>
-                              ) : (
-                                <span style={{ color: "#94a3b8", fontSize: "12px" }}>
-                                  {ord.item_count ? `${ord.item_count} items` : "—"}
-                                </span>
                               )}
                             </td>
                             <td style={{ padding: "12px 14px", textAlign: "center" }}>
@@ -966,18 +956,35 @@ export default function VendorDetailPage() {
                                   fontWeight: 700,
                                   color: "#0f172a",
                                   background: "#f1f5f9",
-                                  padding: "3px 9px",
+                                  padding: "3px 10px",
                                   borderRadius: "12px",
-                                  fontSize: "12px",
+                                  fontSize: "12.5px",
                                 }}
                               >
-                                {ord.total_quantity || 0}
+                                {iss.quantity || 0}
                               </span>
                             </td>
-                            <td style={{ padding: "12px 14px", textAlign: "right", whiteSpace: "nowrap" }}>
-                              <div style={{ fontWeight: 800, color: "#0f172a", fontSize: "14px" }}>
-                                ₹{parseFloat(ord.total_amount || 0).toLocaleString("en-IN", { minimumFractionDigits: 2 })}
+                            <td style={{ padding: "12px 14px" }}>
+                              {iss.description ? (
+                                <span style={{ color: "#334155", fontSize: "12.5px" }}>
+                                  {iss.description}
+                                </span>
+                              ) : (
+                                <span style={{ color: "#94a3b8", fontStyle: "italic", fontSize: "12px" }}>
+                                  No remarks entered
+                                </span>
+                              )}
+                            </td>
+                            <td style={{ padding: "12px 14px", whiteSpace: "nowrap" }}>
+                              <div style={{ color: "#334155", fontWeight: 500, fontSize: "12.5px" }}>
+                                <i className="fa-regular fa-user me-1 text-muted"></i>
+                                {iss.user_name || "Staff"}
                               </div>
+                            </td>
+                            <td style={{ padding: "12px 14px", whiteSpace: "nowrap" }}>
+                              <span style={{ fontSize: "12px", color: "#64748b" }}>
+                                {iss.branch_name || "—"}
+                              </span>
                             </td>
                             <td style={{ padding: "12px 14px", whiteSpace: "nowrap" }}>
                               <span
@@ -986,17 +993,17 @@ export default function VendorDetailPage() {
                                   fontWeight: 700,
                                   padding: "3px 9px",
                                   borderRadius: "99px",
-                                  background: isCompleted ? "#dcfce7" : "#fef3c7",
-                                  color: isCompleted ? "#15803d" : "#b45309",
+                                  background: isApproved ? "#dcfce7" : "#fef3c7",
+                                  color: isApproved ? "#15803d" : "#b45309",
                                   textTransform: "uppercase",
                                 }}
                               >
-                                {ord.status === "active" ? "Completed" : ord.status || "Active"}
+                                {iss.status || "Active"}
                               </span>
                             </td>
                             <td style={{ padding: "12px 16px", textAlign: "center", whiteSpace: "nowrap" }}>
                               <Link
-                                to={`/orderDetailPage/${ord.id}`}
+                                to={`/issueDetailPage/${iss.id}`}
                                 className="btn btn-sm btn-outline-secondary"
                                 style={{
                                   borderRadius: "6px",
@@ -1004,7 +1011,7 @@ export default function VendorDetailPage() {
                                   fontSize: "12px",
                                   fontWeight: 600,
                                 }}
-                                title="View Purchase Order Details"
+                                title="View Issue Details"
                               >
                                 <i className="fa-regular fa-eye me-1"></i> View
                               </Link>
@@ -1024,14 +1031,14 @@ export default function VendorDetailPage() {
                   <div style={{ fontSize: "12.5px", color: "#64748b" }}>
                     Showing{" "}
                     <span style={{ fontWeight: 700, color: "#0f172a" }}>
-                      {Math.min((currentPage - 1) * rowsPerPage + 1, filteredOrders.length)}
+                      {Math.min((currentPage - 1) * rowsPerPage + 1, filteredIssues.length)}
                     </span>{" "}
                     to{" "}
                     <span style={{ fontWeight: 700, color: "#0f172a" }}>
-                      {Math.min(currentPage * rowsPerPage, filteredOrders.length)}
+                      {Math.min(currentPage * rowsPerPage, filteredIssues.length)}
                     </span>{" "}
                     of{" "}
-                    <span style={{ fontWeight: 700, color: "#0f172a" }}>{filteredOrders.length}</span> purchase orders
+                    <span style={{ fontWeight: 700, color: "#0f172a" }}>{filteredIssues.length}</span> issued records
                     {selectedMonth !== "all" && ` in ${moment(selectedMonth, "YYYY-MM").format("MMMM YYYY")}`}
                   </div>
 
@@ -1074,145 +1081,65 @@ export default function VendorDetailPage() {
           </div>
         </Card>
 
-        {/* ── Edit Modal ── */}
-        <Modal show={show} onHide={handleClose} backdrop="static" size="lg" centered>
-          <Form noValidate validated={validated} onSubmit={handleSubmit}>
+        {/* ── Edit Employee Modal ── */}
+        <Modal show={showEditModal} onHide={handleEditModalClose} backdrop="static" centered>
+          <Form noValidate validated={validated} onSubmit={handleEditSubmit}>
             <Modal.Header closeButton style={{ borderBottom: "1px solid #f1f5f9" }}>
               <Modal.Title style={{ fontSize: "16px", fontWeight: 700, color: "#0f172a" }}>
-                Update Vendor: {vendor.name}
+                Update Employee Details
               </Modal.Title>
             </Modal.Header>
             <Modal.Body className="p-4">
-              <Row className="g-3">
-                <Col md={6}>
-                  <Form.Group>
-                    <Form.Label style={{ fontSize: "12.5px", fontWeight: 600, color: "#334155" }}>
-                      Vendor Name *
-                    </Form.Label>
-                    <Form.Control
-                      type="text"
-                      name="name"
-                      value={selectedVendor.name || ""}
-                      onChange={handleInputChange}
-                      required
-                      style={{ fontSize: "13px", borderRadius: "8px" }}
-                    />
-                  </Form.Group>
-                </Col>
+              <Form.Group className="mb-3">
+                <Form.Label style={{ fontSize: "12.5px", fontWeight: 600, color: "#334155" }}>
+                  Employee Name *
+                </Form.Label>
+                <Form.Control
+                  type="text"
+                  name="name"
+                  value={editData.name}
+                  onChange={handleEditChange}
+                  required
+                  placeholder="e.g. John Doe"
+                  style={{ fontSize: "13px", borderRadius: "8px" }}
+                />
+              </Form.Group>
 
-                <Col md={6}>
-                  <Form.Group>
-                    <Form.Label style={{ fontSize: "12.5px", fontWeight: 600, color: "#334155" }}>
-                      GSTIN (15 characters)
-                    </Form.Label>
-                    <Form.Control
-                      type="text"
-                      name="gst_no"
-                      value={selectedVendor.gst_no || ""}
-                      onChange={handleInputChange}
-                      isInvalid={gstValidation !== null}
-                      style={{ fontSize: "13px", borderRadius: "8px" }}
-                    />
-                    <Form.Control.Feedback type="invalid">{gstValidation}</Form.Control.Feedback>
-                  </Form.Group>
-                </Col>
+              <Form.Group className="mb-3">
+                <Form.Label style={{ fontSize: "12.5px", fontWeight: 600, color: "#334155" }}>
+                  Department
+                </Form.Label>
+                <Form.Control
+                  type="text"
+                  name="department"
+                  value={editData.department}
+                  onChange={handleEditChange}
+                  placeholder="e.g. Engineering, Sales, HR"
+                  style={{ fontSize: "13px", borderRadius: "8px" }}
+                />
+              </Form.Group>
 
-                <Col md={6}>
-                  <Form.Group>
-                    <Form.Label style={{ fontSize: "12.5px", fontWeight: 600, color: "#334155" }}>
-                      Assigned Branch
-                    </Form.Label>
-                    <Form.Select
-                      name="branch_id"
-                      value={selectedVendor.branch_id || ""}
-                      onChange={handleInputChange}
-                      style={{ fontSize: "13px", borderRadius: "8px" }}
-                    >
-                      <option value="">Select Branch...</option>
-                      {branches.map((b) => (
-                        <option key={b.id} value={b.id}>
-                          {b.name}
-                        </option>
-                      ))}
-                    </Form.Select>
-                  </Form.Group>
-                </Col>
-
-                <Col md={6}>
-                  <Form.Group>
-                    <Form.Label style={{ fontSize: "12.5px", fontWeight: 600, color: "#334155" }}>
-                      Contact Mobile (10 digits)
-                    </Form.Label>
-                    <Form.Control
-                      type="text"
-                      name="mobile"
-                      value={selectedVendor.mobile || ""}
-                      onChange={handleInputChange}
-                      isInvalid={phoneValidation !== null}
-                      style={{ fontSize: "13px", borderRadius: "8px" }}
-                    />
-                    <Form.Control.Feedback type="invalid">{phoneValidation}</Form.Control.Feedback>
-                  </Form.Group>
-                </Col>
-
-                <Col md={6}>
-                  <Form.Group>
-                    <Form.Label style={{ fontSize: "12.5px", fontWeight: 600, color: "#334155" }}>City</Form.Label>
-                    <Form.Control
-                      type="text"
-                      name="city"
-                      value={selectedVendor.city || ""}
-                      onChange={handleInputChange}
-                      style={{ fontSize: "13px", borderRadius: "8px" }}
-                    />
-                  </Form.Group>
-                </Col>
-
-                <Col md={6}>
-                  <Form.Group>
-                    <Form.Label style={{ fontSize: "12.5px", fontWeight: 600, color: "#334155" }}>State</Form.Label>
-                    <Form.Control
-                      type="text"
-                      name="state"
-                      value={selectedVendor.state || ""}
-                      onChange={handleInputChange}
-                      style={{ fontSize: "13px", borderRadius: "8px" }}
-                    />
-                  </Form.Group>
-                </Col>
-
-                <Col md={8}>
-                  <Form.Group>
-                    <Form.Label style={{ fontSize: "12.5px", fontWeight: 600, color: "#334155" }}>Full Address</Form.Label>
-                    <Form.Control
-                      as="textarea"
-                      rows={2}
-                      name="address"
-                      value={selectedVendor.address || ""}
-                      onChange={handleInputChange}
-                      style={{ fontSize: "13px", borderRadius: "8px" }}
-                    />
-                  </Form.Group>
-                </Col>
-
-                <Col md={4}>
-                  <Form.Group>
-                    <Form.Label style={{ fontSize: "12.5px", fontWeight: 600, color: "#334155" }}>Status</Form.Label>
-                    <Form.Select
-                      name="status"
-                      value={selectedVendor.status || "active"}
-                      onChange={handleInputChange}
-                      style={{ fontSize: "13px", borderRadius: "8px" }}
-                    >
-                      <option value="active">Active</option>
-                      <option value="inactive">Inactive</option>
-                    </Form.Select>
-                  </Form.Group>
-                </Col>
-              </Row>
+              <Form.Group>
+                <Form.Label style={{ fontSize: "12.5px", fontWeight: 600, color: "#334155" }}>
+                  Status
+                </Form.Label>
+                <Form.Select
+                  name="status"
+                  value={editData.status}
+                  onChange={handleEditChange}
+                  style={{ fontSize: "13px", borderRadius: "8px" }}
+                >
+                  <option value="active">Active</option>
+                  <option value="inactive">Inactive</option>
+                </Form.Select>
+              </Form.Group>
             </Modal.Body>
             <Modal.Footer style={{ borderTop: "1px solid #f1f5f9" }}>
-              <Button variant="light" onClick={handleClose} style={{ borderRadius: "8px", fontWeight: 600, fontSize: "13px" }}>
+              <Button
+                variant="light"
+                onClick={handleEditModalClose}
+                style={{ borderRadius: "8px", fontWeight: 600, fontSize: "13px" }}
+              >
                 Cancel
               </Button>
               <Button

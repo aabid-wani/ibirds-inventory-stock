@@ -66,6 +66,10 @@ const Permissions = () => {
           {
             module_id: moduleId,
             role_id: selectedRole,
+            view: false,
+            add: false,
+            edit: false,
+            del: false,
             [permissionType]: true,
           },
         ];
@@ -75,42 +79,30 @@ const Permissions = () => {
 
   const handleSave = async () => {
     try {
-      let allSuccess = true;
-      let anySuccess = false;
-
-      for (const permission of permissions) {
-        // ✅ Add created_by & updated_by for both create and update
-        const payload = {
-          ...permission,
-          updated_by: loginData?.id,
-          ...(permission.id ? {} : { created_by: loginData?.id }),
-        };
-
-        let result;
-
-        if (permission.id) {
-          result = await stockManagementApis.updatePermission(permission.id, payload);
-        } else {
-          result = await stockManagementApis.createPermission(payload);
-        }
-
-        if (result && result.success) {
-          anySuccess = true;
-        } else {
-          allSuccess = false;
-        }
+      if (!permissions || permissions.length === 0) {
+        toast.info("No permissions to save");
+        return;
       }
 
-      // ✅ Toast notifications
-      if (anySuccess && allSuccess) {
-        toast.success('Permissions saved/updated successfully');
-      } else if (anySuccess) {
-        toast.success('Some permissions saved/updated, some failed');
+      const payloads = permissions.map((p) => ({
+        ...p,
+        role_id: selectedRole,
+        updated_by: loginData?.id,
+        created_by: loginData?.id,
+      }));
+
+      const res = await stockManagementApis.batchSavePermissions(payloads);
+      if (res && res.success) {
+        toast.success("Permissions saved successfully!");
+        if (selectedRole) {
+          const updated = await stockManagementApis.getPermissionById(selectedRole);
+          setPermissions(Array.isArray(updated) ? updated : []);
+        }
       } else {
-        toast.error('All permission updates failed');
+        toast.error("Failed to save permissions");
       }
     } catch (error) {
-      toast.error('Failed to save permissions');
+      toast.error(error.message || "Failed to save permissions");
     }
   };
 

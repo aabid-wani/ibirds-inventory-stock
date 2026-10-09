@@ -1,44 +1,40 @@
-import React, { useEffect, useState, useContext } from "react";
+import React, { useEffect, useState, useContext, useMemo } from "react";
 import Main from "../layout/Main";
 import { AuthContext } from "../context/AuthProvider";
 import { toast, ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import moment from "moment";
 import { API_BASE_URL } from "../CONSTANT/CONSTANT";
+import { Row, Col, Card } from "react-bootstrap";
 
 const PURPLE = "#534AB7";
 const CORAL = "#D85A30";
 const TEAL = "#1D9E75";
 
-const cardBase = {
-  background: "#fff",
-  border: "0.5px solid rgba(0,0,0,0.09)",
-  borderRadius: 12,
-  overflow: "hidden",
-};
-
 const cellInput = {
   width: "100%",
-  padding: "6px 10px",
-  fontSize: 13,
-  border: "0.5px solid rgba(0,0,0,0.13)",
-  borderRadius: 7,
-  background: "#fafafa",
+  padding: "7px 10px",
+  fontSize: "12.5px",
+  border: "1px solid #cbd5e1",
+  borderRadius: "8px",
+  background: "#ffffff",
   outline: "none",
-  color: "#1a1a1a",
+  color: "#0f172a",
   fontFamily: "system-ui, sans-serif",
-  minWidth: 120,
+  minWidth: "120px",
+  transition: "border-color 0.15s ease",
 };
 
 const AddMultipleProvision = () => {
   const { loginData } = useContext(AuthContext);
+  const navigate = useNavigate();
 
   const createNewRow = () => ({
     user_id: loginData?.id || "",
     user_name: loginData?.name || "",
     employee: "",
-    branch: "Head Office Ajmer",
+    branch: "",
     product: "",
     qty: "",
     date: new Date().toISOString().split("T")[0],
@@ -57,7 +53,11 @@ const AddMultipleProvision = () => {
       const response = await fetch(url, { ...options, headers });
       if (!response.ok) throw new Error(`Error: ${response.status}`);
       if (options.method === "DELETE") {
-        try { return await response.json(); } catch { return response.status; }
+        try {
+          return await response.json();
+        } catch {
+          return response.status;
+        }
       }
       return await response.json();
     } catch (error) {
@@ -81,20 +81,26 @@ const AddMultipleProvision = () => {
           fetchWithToken(`${API_BASE_URL}/product`),
           fetchWithToken(`${API_BASE_URL}/employee`),
         ]);
-        setBranches(branchRes);
-        setProducts(productRes.filter((p) => p.available_quantity > 0));
-        setEmployees(employeeRes);
+        setBranches(branchRes || []);
+        setProducts((productRes || []).filter((p) => p.available_quantity > 0));
+        setEmployees(employeeRes || []);
 
-        // Dynamically find "Head Office Ajmer" and set it on the first default row
-        const defaultBranch = branchRes.find(b => b.name && b.name.trim() === "Head Office Ajmer");
+        const defaultBranch = (branchRes || []).find(
+          (b) => b.name && b.name.trim().toLowerCase().includes("ajmer")
+        ) || (branchRes && branchRes[0]);
+
         if (defaultBranch) {
           setRows((prevRows) =>
-          // Removed (idx === 0) condition so it applies to ALL initial rows
-          prevRows.map((row) => ({ ...row, branch: defaultBranch.id }))
-        );
-      }
+            prevRows.map((row) => ({
+              ...row,
+              branch: defaultBranch.id,
+              user_id: loginData?.id || row.user_id,
+              user_name: loginData?.name || row.user_name,
+            }))
+          );
+        }
       } catch (err) {
-        throw err;
+        console.error(err);
       } finally {
         setLoading(false);
       }
@@ -103,28 +109,37 @@ const AddMultipleProvision = () => {
   }, [loginData?.id]);
 
   const handleChange = (index, field, value) => {
-  const updated = [...rows];
-  
-  if (field === "qty") {
-    const currentProductId = updated[index]["product"];
-    const maxAvailable = availableQty(currentProductId);
-    
-    const numValue = Number(value);
+    const updated = [...rows];
 
-    if (numValue > maxAvailable) {
-      updated[index][field] = maxAvailable.toString();
+    if (field === "qty") {
+      const currentProductId = updated[index]["product"];
+      const maxAvailable = availableQty(currentProductId);
+      const numValue = Number(value);
+
+      if (numValue > maxAvailable) {
+        updated[index][field] = maxAvailable.toString();
+        toast.info(`Limited to maximum available stock (${maxAvailable})`);
+      } else {
+        updated[index][field] = value;
+      }
     } else {
       updated[index][field] = value;
+      if (field === "product") updated[index]["qty"] = "";
     }
-  } else {
-    updated[index][field] = value;
-    if (field === "product") updated[index]["qty"] = ""; 
-  }
 
-  setRows(updated);
-};
+    setRows(updated);
+  };
 
-  const addRow = () => setRows((prev) => [...prev, createNewRow()]);
+  const addRow = () => {
+    const defaultBranch = branches.find((b) => b.name && b.name.trim().toLowerCase().includes("ajmer")) || branches[0];
+    setRows((prev) => [
+      ...prev,
+      {
+        ...createNewRow(),
+        branch: defaultBranch ? defaultBranch.id : "",
+      },
+    ]);
+  };
 
   const removeRow = (index) => {
     const updated = rows.filter((_, i) => i !== index);
@@ -136,7 +151,28 @@ const AddMultipleProvision = () => {
     return found ? found.available_quantity : 0;
   };
 
+  const totalUnitsToDispatch = useMemo(() => {
+    return rows.reduce((sum, r) => sum + (parseInt(r.qty, 10) || 0), 0);
+  }, [rows]);
+
   const handleSubmit = async () => {
+    // Validate each row
+    for (let i = 0; i < rows.length; i++) {
+      const r = rows[i];
+      if (!r.employee) {
+        toast.error(`Row ${i + 1}: Please select a recipient employee.`);
+        return;
+      }
+      if (!r.product) {
+        toast.error(`Row ${i + 1}: Please select a product.`);
+        return;
+      }
+      if (!r.qty || parseInt(r.qty, 10) <= 0) {
+        toast.error(`Row ${i + 1}: Please specify a valid quantity.`);
+        return;
+      }
+    }
+
     setSubmitting(true);
     const dataToSend = rows.map(({ user_name, ...rest }) => rest);
     try {
@@ -156,13 +192,13 @@ const AddMultipleProvision = () => {
           body: JSON.stringify(productUpdates),
         });
         if (updateRes.success) {
-          toast.success("Provisions added and stock updated!");
-          setRows([createNewRow()]);
+          toast.success("All provisions recorded and stock deducted successfully!");
+          setTimeout(() => navigate("/issue"), 1500);
         } else {
-          toast.error("Failed to update stock.");
+          toast.error("Failed to update stock balance.");
         }
       } else {
-        toast.error("Failed to add provisions.");
+        toast.error("Failed to submit provisions.");
       }
     } catch (err) {
       toast.error("Error submitting provisions.");
@@ -171,28 +207,16 @@ const AddMultipleProvision = () => {
     }
   };
 
-  const thStyle = {
-    padding: "10px 12px",
-    fontSize: 11,
-    fontWeight: 600,
-    color: "#fff",
-    background: "#1e2128",
-    textAlign: "left",
-    whiteSpace: "nowrap",
-  };
-
   return (
     <>
       <style>{`
-        .mp-input:focus { border-color: ${PURPLE} !important; box-shadow: 0 0 0 2px rgba(83,74,183,0.12); background: #fff !important; }
-        .mp-row:hover { background: #fafafe; }
+        .mp-input:focus { border-color: ${PURPLE} !important; box-shadow: 0 0 0 2px rgba(83,74,183,0.15); }
+        .mp-row:hover { background: #f8fafc; }
         .mp-table { border-collapse: collapse; width: 100%; }
-        .mp-table th:first-child { border-radius: 8px 0 0 0; }
-        .mp-table th:last-child { border-radius: 0 8px 0 0; }
-        .mp-td { padding: 10px 10px; border-bottom: 0.5px solid rgba(0,0,0,0.06); vertical-align: middle; }
+        .mp-td { padding: 12px 10px; border-bottom: 1px solid #f1f5f9; vertical-align: middle; }
         .toggle-pill { position: relative; display: inline-flex; align-items: center; cursor: pointer; gap: 8px; }
         .toggle-pill input { display: none; }
-        .toggle-track { width: 34px; height: 18px; background: #ddd; border-radius: 99px; transition: background 0.2s; flex-shrink: 0; position: relative; }
+        .toggle-track { width: 34px; height: 18px; background: #cbd5e1; border-radius: 99px; transition: background 0.2s; flex-shrink: 0; position: relative; }
         .toggle-thumb { position: absolute; top: 2px; left: 2px; width: 14px; height: 14px; border-radius: 50%; background: #fff; transition: transform 0.2s; }
         .toggle-pill input:checked ~ .toggle-track { background: ${TEAL}; }
         .toggle-pill input:checked ~ .toggle-track .toggle-thumb { transform: translateX(16px); }
@@ -201,84 +225,165 @@ const AddMultipleProvision = () => {
       `}</style>
 
       <Main>
-        <div style={{ padding: "16px 20px 24px" }}>
-          {/* Breadcrumb */}
-          <nav style={{ fontSize: 13, color: "#aaa", marginBottom: 16 }}>
-            <Link to="/Home" style={{ color: PURPLE, textDecoration: "none" }}>Home</Link>
-            <span style={{ margin: "0 6px" }}>/</span>
-            <Link to="/issue" style={{ color: PURPLE, textDecoration: "none" }}>Provision</Link>
-            <span style={{ margin: "0 6px" }}>/</span>
-            <span style={{ color: "#333", fontWeight: 500 }}>Add Multiple</span>
-          </nav>
+        <ToastContainer position="top-right" autoClose={3000} />
 
-          <div style={cardBase}>
-            {/* Header */}
-            <div style={{
-              padding: "16px 20px",
-              borderBottom: "0.5px solid rgba(0,0,0,0.07)",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "space-between",
-              flexWrap: "wrap",
-              gap: 12,
-            }}>
-              <div>
-                <p style={{ fontSize: 16, fontWeight: 500, color: "#1a1a1a", margin: 0 }}>Add Multiple Provisions</p>
-                <p style={{ fontSize: 12, color: "#aaa", margin: 0 }}>{rows.length} row{rows.length !== 1 ? "s" : ""}</p>
+        <div style={{ background: "#f8fafc", minHeight: "100vh", padding: "24px" }}>
+          {/* ── Top Bar ── */}
+          <div className="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
+            <div>
+              <div style={{ fontSize: "13px", color: "#64748b" }}>
+                <Link to="/Home" style={{ color: PURPLE, textDecoration: "none", fontWeight: 600 }}>
+                  Home
+                </Link>{" "}
+                /{" "}
+                <Link to="/issue" style={{ color: PURPLE, textDecoration: "none", fontWeight: 600 }}>
+                  Provisions
+                </Link>{" "}
+                / <span style={{ color: "#0f172a", fontWeight: 600 }}>Batch Stock Dispatch</span>
               </div>
-              <div style={{ display: "flex", gap: 10 }}>
-                <button
-                  onClick={addRow}
-                  disabled={loading || submitting}
-                  style={{
-                    display: "flex", alignItems: "center", gap: 6,
-                    padding: "8px 16px", borderRadius: 8,
-                    border: `0.5px solid ${PURPLE}`, background: "transparent",
-                    color: PURPLE, fontSize: 13, fontWeight: 500, cursor: "pointer",
-                    opacity: loading || submitting ? 0.5 : 1,
-                  }}
-                >
-                  <i className="fa fa-plus" style={{ fontSize: 11 }}></i> Add Row
-                </button>
-                <button
-                  onClick={handleSubmit}
-                  disabled={rows.length === 0 || loading || submitting}
-                  style={{
-                    display: "flex", alignItems: "center", gap: 6,
-                    padding: "8px 20px", borderRadius: 8,
-                    border: "none", background: PURPLE,
-                    color: "#fff", fontSize: 13, fontWeight: 500, cursor: "pointer",
-                    opacity: submitting ? 0.7 : 1,
-                  }}
-                >
-                  {submitting
-                    ? <><i className="fa fa-circle-notch spin"></i> Submitting…</>
-                    : <><i className="fa fa-check" style={{ fontSize: 12 }}></i> Submit All</>
-                  }
-                </button>
-              </div>
+              <h4 style={{ margin: "4px 0 0", fontWeight: 700, color: "#0f172a" }}>
+                Batch Stock Provisioning Slip
+              </h4>
             </div>
 
-            <div style={{ overflowX: "auto", padding: "16px 20px 20px" }}>
+            <div className="d-flex gap-2">
+              <Link to="/issue" className="btn btn-sm btn-light border" style={{ borderRadius: "8px", fontWeight: 600, padding: "7px 16px" }}>
+                Cancel
+              </Link>
+              <button
+                onClick={addRow}
+                disabled={loading || submitting}
+                className="btn btn-sm btn-outline-primary d-flex align-items-center gap-2"
+                style={{
+                  borderColor: PURPLE,
+                  color: PURPLE,
+                  borderRadius: "8px",
+                  fontWeight: 600,
+                  padding: "7px 16px",
+                }}
+              >
+                <i className="fa-solid fa-plus"></i> Add Line
+              </button>
+              <button
+                onClick={handleSubmit}
+                disabled={rows.length === 0 || loading || submitting}
+                className="btn btn-sm d-flex align-items-center gap-2"
+                style={{
+                  background: PURPLE,
+                  color: "#ffffff",
+                  borderRadius: "8px",
+                  fontWeight: 600,
+                  padding: "7px 22px",
+                  boxShadow: "0 2px 6px rgba(83, 74, 183, 0.25)",
+                }}
+              >
+                {submitting ? (
+                  <>
+                    <span className="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
+                    Processing Batch...
+                  </>
+                ) : (
+                  <>
+                    <i className="fa-solid fa-paper-plane"></i> Dispatch & Deduct Stock
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+
+          {/* ── Batch Metrics KPI Deck ── */}
+          <Row className="g-3 mb-4">
+            <Col md={4}>
+              <div
+                style={{
+                  background: "#ffffff",
+                  border: "1px solid #e2e8f0",
+                  borderRadius: "12px",
+                  padding: "16px 20px",
+                  borderTop: `3px solid ${PURPLE}`,
+                }}
+              >
+                <div style={{ fontSize: "11px", fontWeight: 700, color: "#64748b", textTransform: "uppercase" }}>
+                  Items in Batch
+                </div>
+                <div style={{ fontSize: "24px", fontWeight: 700, color: "#0f172a", marginTop: "4px" }}>
+                  {rows.length} Dispatches
+                </div>
+                <div style={{ fontSize: "11px", color: "#94a3b8", marginTop: "2px" }}>Rows ready for issue</div>
+              </div>
+            </Col>
+
+            <Col md={4}>
+              <div
+                style={{
+                  background: "#ffffff",
+                  border: "1px solid #e2e8f0",
+                  borderRadius: "12px",
+                  padding: "16px 20px",
+                  borderTop: `3px solid ${TEAL}`,
+                }}
+              >
+                <div style={{ fontSize: "11px", fontWeight: 700, color: "#64748b", textTransform: "uppercase" }}>
+                  Total Units to Deduct
+                </div>
+                <div style={{ fontSize: "24px", fontWeight: 700, color: TEAL, marginTop: "4px" }}>
+                  {totalUnitsToDispatch} Units
+                </div>
+                <div style={{ fontSize: "11px", color: "#94a3b8", marginTop: "2px" }}>Cumulative outward quantity</div>
+              </div>
+            </Col>
+
+            <Col md={4}>
+              <div
+                style={{
+                  background: "#ffffff",
+                  border: "1px solid #e2e8f0",
+                  borderRadius: "12px",
+                  padding: "16px 20px",
+                  borderTop: `3px solid ${CORAL}`,
+                }}
+              >
+                <div style={{ fontSize: "11px", fontWeight: 700, color: "#64748b", textTransform: "uppercase" }}>
+                  Issuing Operator
+                </div>
+                <div style={{ fontSize: "20px", fontWeight: 700, color: "#1e293b", marginTop: "6px" }}>
+                  {loginData?.name || "Staff Member"}
+                </div>
+                <div style={{ fontSize: "11px", color: "#94a3b8", marginTop: "2px" }}>Logged-in user authority</div>
+              </div>
+            </Col>
+          </Row>
+
+          {/* ── Main Dispatch Table Card ── */}
+          <Card style={{ border: "1px solid #e2e8f0", borderRadius: "14px", overflow: "hidden", boxShadow: "0 1px 3px rgba(0,0,0,0.03)" }}>
+            <div className="p-3 border-bottom d-flex justify-content-between align-items-center" style={{ background: "#ffffff" }}>
+              <h6 style={{ margin: 0, fontWeight: 700, color: "#0f172a", fontSize: "14px" }}>
+                <i className="fa-solid fa-list-check me-2" style={{ color: PURPLE }}></i>
+                Dispatched Line Items Specification
+              </h6>
+              <span style={{ fontSize: "12px", color: "#64748b" }}>
+                Select recipient, product, and issue quantity
+              </span>
+            </div>
+
+            <div style={{ overflowX: "auto" }}>
               {loading ? (
-                <div style={{ textAlign: "center", padding: "48px 0", color: "#aaa" }}>
-                  <i className="fa fa-circle-notch spin" style={{ fontSize: 28, color: PURPLE }}></i>
-                  <p style={{ marginTop: 12, fontSize: 13 }}>Loading data…</p>
+                <div className="text-center p-5 text-muted">
+                  <span className="spinner-border text-primary me-2"></span> Loading catalogs...
                 </div>
               ) : (
                 <table className="mp-table">
-                  <thead>
+                  <thead style={{ background: "#1e293b", color: "#f8fafc" }}>
                     <tr>
-                      <th style={{ ...thStyle, width: 40 }}>#</th>
-                      <th style={thStyle}>User</th>
-                      <th style={thStyle}>Employee</th>
-                      <th style={thStyle}>Branch</th>
-                      <th style={thStyle}>Product</th>
-                      <th style={thStyle}>Qty</th>
-                      <th style={thStyle}>Date</th>
-                      <th style={thStyle}>Status</th>
-                      <th style={thStyle}>Description</th>
-                      <th style={thStyle}></th>
+                      <th style={{ padding: "12px 14px", fontSize: "12px", fontWeight: 600, width: "50px" }}>#</th>
+                      <th style={{ padding: "12px 14px", fontSize: "12px", fontWeight: 600 }}>Recipient Employee *</th>
+                      <th style={{ padding: "12px 14px", fontSize: "12px", fontWeight: 600 }}>Branch Facility</th>
+                      <th style={{ padding: "12px 14px", fontSize: "12px", fontWeight: 600 }}>Product Stock *</th>
+                      <th style={{ padding: "12px 14px", fontSize: "12px", fontWeight: 600, width: "110px" }}>Qty *</th>
+                      <th style={{ padding: "12px 14px", fontSize: "12px", fontWeight: 600, width: "150px" }}>Issue Date</th>
+                      <th style={{ padding: "12px 14px", fontSize: "12px", fontWeight: 600, width: "110px" }}>Status</th>
+                      <th style={{ padding: "12px 14px", fontSize: "12px", fontWeight: 600 }}>Purpose / Remarks</th>
+                      <th style={{ padding: "12px 14px", width: "50px" }}></th>
                     </tr>
                   </thead>
                   <tbody>
@@ -286,98 +391,141 @@ const AddMultipleProvision = () => {
                       const avail = availableQty(row.product);
                       return (
                         <tr key={idx} className="mp-row">
-                          <td className="mp-td">
-                            <span style={{ fontSize: 12, color: "#aaa", fontWeight: 500 }}>{idx + 1}</span>
+                          <td className="mp-td" style={{ color: "#64748b", fontWeight: 600, textAlign: "center" }}>
+                            {idx + 1}
                           </td>
+
                           <td className="mp-td">
-                            <span style={{ fontSize: 13, color: "#555", whiteSpace: "nowrap" }}>{row.user_name}</span>
-                          </td>
-                          <td className="mp-td">
-                            <select className="mp-input" style={cellInput} value={row.employee}
-                              onChange={(e) => handleChange(idx, "employee", e.target.value)}>
-                              <option value="" disabled>Select…</option>
-                              {employees.map((e) => <option key={e.id} value={e.id}>{e.name}</option>)}
+                            <select
+                              className="mp-input"
+                              style={cellInput}
+                              value={row.employee}
+                              onChange={(e) => handleChange(idx, "employee", e.target.value)}
+                            >
+                              <option value="">Select Employee...</option>
+                              {employees.map((e) => (
+                                <option key={e.id} value={e.id}>
+                                  {e.name} ({e.department || "Staff"})
+                                </option>
+                              ))}
                             </select>
                           </td>
+
                           <td className="mp-td">
-                            <select className="mp-input" style={cellInput} value={row.branch}
-                              onChange={(e) => handleChange(idx, "branch", e.target.value)}>
-                              <option value="" disabled>Select…</option>
-                              {branches.map((b) => <option key={b.id} value={b.id}>{b.name}</option>)}
+                            <select
+                              className="mp-input"
+                              style={cellInput}
+                              value={row.branch}
+                              onChange={(e) => handleChange(idx, "branch", e.target.value)}
+                            >
+                              <option value="">Select Branch...</option>
+                              {branches.map((b) => (
+                                <option key={b.id} value={b.id}>
+                                  {b.name}
+                                </option>
+                              ))}
                             </select>
                           </td>
+
                           <td className="mp-td">
-                            <select className="mp-input" style={cellInput} value={row.product}
-                              onChange={(e) => handleChange(idx, "product", e.target.value)}>
-                              <option value="" disabled>Select…</option>
-                              {products.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
+                            <select
+                              className="mp-input"
+                              style={cellInput}
+                              value={row.product}
+                              onChange={(e) => handleChange(idx, "product", e.target.value)}
+                            >
+                              <option value="">Select Product...</option>
+                              {products.map((p) => (
+                                <option key={p.id} value={p.id}>
+                                  {p.name} ({p.measurement_unit || "Units"}) — Avail: {p.available_quantity}
+                                </option>
+                              ))}
                             </select>
                             {row.product && (
-                              <span style={{ fontSize: 11, color: avail > 0 ? TEAL : CORAL, display: "block", marginTop: 3 }}>
-                                {avail > 0 ? `Available: ${avail}` : "Out of stock"}
-                              </span>
+                              <div style={{ fontSize: "11px", fontWeight: 600, marginTop: "4px" }}>
+                                {avail > 0 ? (
+                                  <span style={{ color: TEAL }}>
+                                    <i className="fa-solid fa-circle-check me-1"></i> Stock on hand: {avail}
+                                  </span>
+                                ) : (
+                                  <span style={{ color: CORAL }}>
+                                    <i className="fa-solid fa-triangle-exclamation me-1"></i> Depleted (0)
+                                  </span>
+                                )}
+                              </div>
                             )}
                           </td>
-                          <td className="mp-td" style={{ minWidth: 90 }}>
-                              <input
-                                className="mp-input"
-                                type="number"
-                                style={cellInput}
-                                value={row.qty}
-                                min={1}
-                                max={avail}
-                                disabled={!row.product || avail <= 0} 
-                                onChange={(e) => handleChange(idx, "qty", e.target.value)}
-                                placeholder={avail <= 0 ? "N/A" : "0"}
-                              />
-                            </td>
 
-                          <td className="mp-td" style={{ minWidth: 140 }}>
+                          <td className="mp-td">
+                            <input
+                              className="mp-input"
+                              type="number"
+                              style={cellInput}
+                              value={row.qty}
+                              min={1}
+                              max={avail}
+                              disabled={!row.product || avail <= 0}
+                              onChange={(e) => handleChange(idx, "qty", e.target.value)}
+                              placeholder="0"
+                            />
+                          </td>
+
+                          <td className="mp-td">
                             <input
                               className="mp-input"
                               type="date"
                               style={cellInput}
                               value={row.date}
-                              min={moment().subtract(1, "months").startOf("month").format("YYYY-MM-DD")}
                               max={moment().format("YYYY-MM-DD")}
                               onChange={(e) => handleChange(idx, "date", e.target.value)}
                             />
                           </td>
+
                           <td className="mp-td">
                             <label className="toggle-pill">
                               <input
                                 type="checkbox"
                                 checked={row.status === "active"}
-                                onChange={(e) => handleChange(idx, "status", e.target.checked ? "active" : "inactive")}
+                                onChange={(e) =>
+                                  handleChange(idx, "status", e.target.checked ? "active" : "inactive")
+                                }
                               />
-                              <span className="toggle-track"><span className="toggle-thumb"></span></span>
-                              <span style={{ fontSize: 12, color: row.status === "active" ? TEAL : "#aaa", fontWeight: 500 }}>
-                                {row.status === "active" ? "Active" : "Inactive"}
+                              <span className="toggle-track">
+                                <span className="toggle-thumb"></span>
+                              </span>
+                              <span
+                                style={{
+                                  fontSize: "11.5px",
+                                  fontWeight: 600,
+                                  color: row.status === "active" ? TEAL : "#94a3b8",
+                                }}
+                              >
+                                {row.status === "active" ? "Active" : "Draft"}
                               </span>
                             </label>
                           </td>
-                          <td className="mp-td" style={{ minWidth: 160 }}>
+
+                          <td className="mp-td">
                             <input
                               className="mp-input"
-                              style={cellStyle}
+                              style={cellInput}
                               value={row.description}
-                              placeholder="Optional…"
+                              placeholder="Reason / Project..."
                               onChange={(e) => handleChange(idx, "description", e.target.value)}
                             />
                           </td>
-                          <td className="mp-td">
-                            <button
-                              onClick={() => removeRow(idx)}
-                              disabled={submitting}
-                              style={{
-                                width: 30, height: 30, borderRadius: 7,
-                                border: `0.5px solid ${CORAL}`, background: "transparent",
-                                color: CORAL, cursor: "pointer", fontSize: 13,
-                                display: "flex", alignItems: "center", justifyContent: "center",
-                              }}
-                            >
-                              <i className="fa fa-trash"></i>
-                            </button>
+
+                          <td className="mp-td text-center">
+                            {rows.length > 1 && (
+                              <button
+                                type="button"
+                                onClick={() => removeRow(idx)}
+                                className="btn btn-sm btn-link text-danger p-0"
+                                title="Remove line"
+                              >
+                                <i className="fa-solid fa-trash-can"></i>
+                              </button>
+                            )}
                           </td>
                         </tr>
                       );
@@ -386,25 +534,11 @@ const AddMultipleProvision = () => {
                 </table>
               )}
             </div>
-          </div>
+          </Card>
         </div>
-        <ToastContainer position="top-right" autoClose={3000} />
       </Main>
     </>
   );
-};
-
-const cellStyle = {
-  width: "100%",
-  padding: "6px 10px",
-  fontSize: 13,
-  border: "0.5px solid rgba(0,0,0,0.13)",
-  borderRadius: 7,
-  background: "#fafafa",
-  outline: "none",
-  color: "#1a1a1a",
-  fontFamily: "system-ui, sans-serif",
-  minWidth: 120,
 };
 
 export default AddMultipleProvision;

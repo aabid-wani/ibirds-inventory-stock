@@ -1,19 +1,23 @@
-import React, { useState, useEffect } from "react";
-import { Container, Card, Button, Form } from "react-bootstrap";
+import React, { useState, useEffect, useMemo } from "react";
+import { Container, Card, Button, Form, Row, Col } from "react-bootstrap";
 import { saveAs } from "file-saver";
+import * as XLSX from "xlsx";
 import Main from "../layout/Main";
 import { Link } from "react-router-dom";
 import { API_BASE_URL } from "../CONSTANT/CONSTANT";
 import { ToastContainer, toast } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 
+const PURPLE = "#534AB7";
+const CORAL = "#D85A30";
+const TEAL = "#1D9E75";
+
 function LowStockReport() {
   const currentMonth = new Date().toISOString().slice(0, 7);
   const [month, setMonth] = useState(currentMonth);
   const [report, setReport] = useState([]);
   const [monthOptions, setMonthOptions] = useState([]);
-
-  const primaryColor = "#5650ce";
+  const [loading, setLoading] = useState(false);
 
   const fetchWithToken = async (url, options = {}) => {
     const token = sessionStorage.getItem("token");
@@ -37,8 +41,8 @@ function LowStockReport() {
     const options = [];
     while (start <= now) {
       const year = start.getFullYear();
-      const month = String(start.getMonth() + 1).padStart(2, "0");
-      options.push(`${year}-${month}`);
+      const m = String(start.getMonth() + 1).padStart(2, "0");
+      options.push(`${year}-${m}`);
       start.setMonth(start.getMonth() + 1);
     }
     setMonthOptions(options.reverse());
@@ -48,106 +52,273 @@ function LowStockReport() {
     const fetchReport = async () => {
       if (!month) return;
       try {
+        setLoading(true);
         const res = await fetchWithToken(`${API_BASE_URL}/reports/low-stock?month=${month}`);
         setReport(res.data || []);
       } catch (error) {
         setReport([]);
-        throw error;
+      } finally {
+        setLoading(false);
       }
     };
     fetchReport();
   }, [month]);
 
-  const downloadCSV = () => {
+  const zeroStockCount = useMemo(() => {
+    return report.filter((r) => parseFloat(r.current_stock) <= 0).length;
+  }, [report]);
+
+  const downloadExcel = () => {
     if (!report.length) {
       toast.warn("No data to download.");
       return;
     }
-    const rows = [
-      ["Product Name", "Total Buy", "Total Issue", "Current Stock", "Min Quantity", "Created At"],
-      ...report.map((item) => [
-        item.name,
-        item.total_buy_quantity,
-        item.total_issue_quantity,
-        item.current_stock,
-        item.min_quantity,
-        new Date(item.created_at).toLocaleDateString(),
-      ]),
-    ];
-    const csv = rows.map((r) => r.join(",")).join("\n");
-    const blob = new Blob([csv], { type: "text/csv" });
-    saveAs(blob, `low_stock_report_${month}.csv`);
+    const dataToExport = report.map((item, idx) => ({
+      "S.No": idx + 1,
+      "Product Name": item.name,
+      "Total Acquired": item.total_buy_quantity,
+      "Total Dispatched": item.total_issue_quantity,
+      "Current Stock on Hand": item.current_stock,
+      "Safety Min Quantity": item.min_quantity,
+      "Audit Date": new Date(item.created_at).toLocaleDateString(),
+    }));
+
+    const worksheet = XLSX.utils.json_to_sheet(dataToExport);
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, "LowStock");
+    const excelBuffer = XLSX.write(workbook, { bookType: "xlsx", type: "array" });
+    const data = new Blob([excelBuffer], { type: "application/octet-stream" });
+    saveAs(data, `low_stock_audit_${month}.xlsx`);
   };
 
   return (
     <Main>
-      <div className="my-3 px-3" style={{ fontSize: "14px" }}>
-        <Link to="/Home" className="text-decoration-none" style={{ color: primaryColor }}>Home</Link>
-        <span className="text-muted mx-2">/</span>
-        <span className="text-muted">Low Stock Report</span>
-      </div>
+      <ToastContainer position="top-right" autoClose={3000} />
 
-      <Container fluid className="px-3">
-        <Card className="border-0 shadow-sm mb-4" style={{ borderRadius: "8px", overflow: "hidden" }}>
-         
-          <div className="d-flex justify-content-between align-items-center p-3 border-bottom bg-white flex-wrap gap-3">
-            <div>
-              <h5 className="mb-0 fw-normal">Low Stock Report</h5>
-            </div>
-            
-            <div className="d-flex align-items-center gap-3">
-              <Form.Select
-                size="sm"
-                className="border-light-subtle shadow-none"
-                style={{ minWidth: "160px", backgroundColor: "#f8f9fa", cursor: "pointer" }}
-                value={month}
-                onChange={(e) => setMonth(e.target.value)}
-              >
-                {monthOptions.map((m) => {
-                  const date = new Date(`${m}-01`);
-                  const label = date.toLocaleString("default", { month: "long", year: "numeric" });
-                  return <option key={m} value={m}>{label}</option>;
-                })}
-              </Form.Select>
-
-              <Button
-                variant="success"
-                className="btn-sm px-3 d-flex align-items-center gap-2"
-                onClick={downloadCSV}
-              >
-                <i className="fa-solid fa-file-csv"></i> Export CSV
-              </Button>
-            </div>
+      <div style={{ background: "#f8fafc", minHeight: "100vh", padding: "24px" }}>
+        {/* ── Top Bar ── */}
+        <div className="d-flex justify-content-between align-items-center mb-3">
+          <div style={{ fontSize: "13px", color: "#64748b" }}>
+            <Link to="/Home" style={{ color: PURPLE, textDecoration: "none", fontWeight: 600 }}>
+              Home
+            </Link>{" "}
+            / <span style={{ color: "#0f172a", fontWeight: 600 }}>Low Stock & Replenishment Audit</span>
           </div>
 
-          <div className="p-0 table-responsive" style={{ maxHeight: "60vh", overflow: "auto" }}>
+          <div className="d-flex align-items-center gap-2">
+            <Form.Select
+              size="sm"
+              style={{
+                minWidth: "180px",
+                backgroundColor: "#ffffff",
+                borderColor: "#cbd5e1",
+                fontSize: "12.5px",
+                fontWeight: 600,
+                borderRadius: "8px",
+                padding: "7px 12px",
+              }}
+              value={month}
+              onChange={(e) => setMonth(e.target.value)}
+            >
+              {monthOptions.map((m) => {
+                const date = new Date(`${m}-01`);
+                const label = date.toLocaleString("default", { month: "long", year: "numeric" });
+                return (
+                  <option key={m} value={m}>
+                    {label}
+                  </option>
+                );
+              })}
+            </Form.Select>
+
+            <Button
+              className="btn-sm d-flex align-items-center gap-2"
+              onClick={downloadExcel}
+              style={{
+                background: "#ffffff",
+                border: "1px solid #cbd5e1",
+                color: "#334155",
+                fontWeight: 600,
+                borderRadius: "8px",
+                padding: "7px 14px",
+              }}
+            >
+              <i className="fa-solid fa-file-excel text-success"></i> Export Excel
+            </Button>
+
+            <Link
+              to="/product"
+              className="btn btn-sm d-flex align-items-center gap-2"
+              style={{
+                background: PURPLE,
+                color: "#ffffff",
+                fontWeight: 600,
+                borderRadius: "8px",
+                padding: "7px 16px",
+                boxShadow: "0 2px 6px rgba(83, 74, 183, 0.25)",
+              }}
+            >
+              <i className="fa-solid fa-boxes-stacked"></i> Replenish at Catalog
+            </Link>
+          </div>
+        </div>
+
+        {/* ── KPI Deck ── */}
+        <Row className="g-3 mb-4">
+          <Col md={4}>
+            <div
+              style={{
+                background: "#ffffff",
+                border: "1px solid #e2e8f0",
+                borderRadius: "12px",
+                padding: "16px 20px",
+                borderTop: `3px solid ${CORAL}`,
+              }}
+            >
+              <div style={{ fontSize: "11px", fontWeight: 700, color: "#64748b", textTransform: "uppercase" }}>
+                Total Items Below Threshold
+              </div>
+              <div style={{ fontSize: "26px", fontWeight: 800, color: CORAL, marginTop: "4px" }}>
+                {report.length} SKUs
+              </div>
+              <div style={{ fontSize: "11px", color: "#94a3b8", marginTop: "2px" }}>Require immediate purchase orders</div>
+            </div>
+          </Col>
+
+          <Col md={4}>
+            <div
+              style={{
+                background: "#ffffff",
+                border: "1px solid #e2e8f0",
+                borderRadius: "12px",
+                padding: "16px 20px",
+                borderTop: "3px solid #dc2626",
+              }}
+            >
+              <div style={{ fontSize: "11px", fontWeight: 700, color: "#64748b", textTransform: "uppercase" }}>
+                Completely Depleted (Zero Stock)
+              </div>
+              <div style={{ fontSize: "26px", fontWeight: 800, color: "#dc2626", marginTop: "4px" }}>
+                {zeroStockCount} SKUs
+              </div>
+              <div style={{ fontSize: "11px", color: "#94a3b8", marginTop: "2px" }}>Cannot fulfill current dispatch orders</div>
+            </div>
+          </Col>
+
+          <Col md={4}>
+            <div
+              style={{
+                background: "#ffffff",
+                border: "1px solid #e2e8f0",
+                borderRadius: "12px",
+                padding: "16px 20px",
+                borderTop: `3px solid ${TEAL}`,
+              }}
+            >
+              <div style={{ fontSize: "11px", fontWeight: 700, color: "#64748b", textTransform: "uppercase" }}>
+                Selected Audit Period
+              </div>
+              <div style={{ fontSize: "18px", fontWeight: 700, color: "#0f172a", marginTop: "6px" }}>
+                {new Date(`${month}-01`).toLocaleString("default", { month: "long", year: "numeric" })}
+              </div>
+              <div style={{ fontSize: "11px", color: "#94a3b8", marginTop: "2px" }}>Monthly consumption reconciliation</div>
+            </div>
+          </Col>
+        </Row>
+
+        {/* ── Table Card ── */}
+        <Card style={{ border: "1px solid #e2e8f0", borderRadius: "14px", overflow: "hidden", boxShadow: "0 1px 3px rgba(0,0,0,0.03)" }}>
+          <div className="p-3 border-bottom d-flex justify-content-between align-items-center" style={{ background: "#ffffff" }}>
+            <h6 style={{ margin: 0, fontWeight: 700, color: "#0f172a", fontSize: "14px" }}>
+              <i className="fa-solid fa-triangle-exclamation text-danger me-2"></i>
+              Stock Shortage Alerts & Replenishment Requirements ({report.length})
+            </h6>
+          </div>
+
+          <div className="table-responsive">
             <table className="table table-hover align-middle mb-0" style={{ fontSize: "13px" }}>
-              <thead style={{ position: "sticky", top: 0, zIndex: 2, backgroundColor: "#212529", color: "#ffffff" }}>
+              <thead style={{ background: "#1e293b", color: "#f8fafc" }}>
                 <tr>
-                  <th style={{ fontWeight: "600", padding: "12px" }}>Product Name</th>
-                  <th style={{ fontWeight: "600", padding: "12px" }}>Total Buy</th>
-                  <th style={{ fontWeight: "600", padding: "12px" }}>Total Issue</th>
-                  <th style={{ fontWeight: "600", padding: "12px" }}>Current Stock</th>
-                  <th style={{ fontWeight: "600", padding: "12px" }}>Min Quantity</th>
-                  <th style={{ fontWeight: "600", padding: "12px" }}>Created At</th>
+                  <th style={{ padding: "12px 16px", width: "70px" }}>S.No</th>
+                  <th style={{ padding: "12px 16px" }}>Product Name</th>
+                  <th style={{ padding: "12px 16px" }}>Total Acquired</th>
+                  <th style={{ padding: "12px 16px" }}>Total Dispatched</th>
+                  <th style={{ padding: "12px 16px" }}>Current Stock on Hand</th>
+                  <th style={{ padding: "12px 16px" }}>Safety Stock Min</th>
+                  <th style={{ padding: "12px 16px" }}>Status Indicator</th>
+                  <th style={{ padding: "12px 16px" }} className="text-center">Action</th>
                 </tr>
               </thead>
               <tbody>
-                {report.length > 0 ? (
-                  report.map((item, i) => (
-                    <tr key={i}>
-                      <td className="px-3 fw-medium text-dark">{item.name}</td>
-                      <td className="px-3">{item.total_buy_quantity}</td>
-                      <td className="px-3">{item.total_issue_quantity}</td>
-                      <td className="px-3 fw-bold text-danger">{item.current_stock}</td>
-                      <td className="px-3">{item.min_quantity}</td>
-                      <td className="px-3 text-muted">{new Date(item.created_at).toLocaleDateString()}</td>
-                    </tr>
-                  ))
+                {loading ? (
+                  <tr>
+                    <td colSpan={8} className="p-5 text-center text-muted">
+                      <span className="spinner-border text-primary me-2"></span> Generating stock audit...
+                    </td>
+                  </tr>
+                ) : report.length > 0 ? (
+                  report.map((item, idx) => {
+                    const current = parseFloat(item.current_stock || 0);
+                    const isZero = current <= 0;
+                    return (
+                      <tr key={idx}>
+                        <td style={{ padding: "12px 16px", color: "#64748b" }}>{idx + 1}</td>
+                        <td style={{ padding: "12px 16px", fontWeight: 600, color: "#0f172a" }}>
+                          {item.name}
+                        </td>
+                        <td style={{ padding: "12px 16px", color: "#334155" }}>{item.total_buy_quantity}</td>
+                        <td style={{ padding: "12px 16px", color: "#334155" }}>{item.total_issue_quantity}</td>
+                        <td style={{ padding: "12px 16px" }}>
+                          <span
+                            style={{
+                              fontSize: "13px",
+                              fontWeight: 800,
+                              color: isZero ? "#dc2626" : CORAL,
+                            }}
+                          >
+                            {current} Units
+                          </span>
+                        </td>
+                        <td style={{ padding: "12px 16px", color: "#64748b" }}>{item.min_quantity} Units</td>
+                        <td style={{ padding: "12px 16px" }}>
+                          <span
+                            style={{
+                              fontSize: "11px",
+                              fontWeight: 700,
+                              padding: "3px 8px",
+                              borderRadius: "99px",
+                              background: isZero ? "#fee2e2" : "#fef3c7",
+                              color: isZero ? "#b91c1c" : "#b45309",
+                            }}
+                          >
+                            {isZero ? "OUT OF STOCK" : "LOW STOCK"}
+                          </span>
+                        </td>
+                        <td style={{ padding: "12px 16px" }} className="text-center">
+                          <Link
+                            to="/order"
+                            className="btn btn-sm"
+                            style={{
+                              background: "#eeedfe",
+                              color: PURPLE,
+                              border: "1px solid #c7d2fe",
+                              borderRadius: "6px",
+                              fontWeight: 600,
+                              fontSize: "12px",
+                              padding: "3px 10px",
+                            }}
+                          >
+                            + Order
+                          </Link>
+                        </td>
+                      </tr>
+                    );
+                  })
                 ) : (
                   <tr>
-                    <td colSpan="6" className="text-center py-5 text-muted">
-                      No data available for the selected month.
+                    <td colSpan={8} className="p-5 text-center text-muted">
+                      <i className="fa-solid fa-circle-check fs-2 text-success mb-2 d-block"></i>
+                      All products are currently operating above their safety stock minimums for this period!
                     </td>
                   </tr>
                 )}
@@ -155,8 +326,7 @@ function LowStockReport() {
             </table>
           </div>
         </Card>
-      </Container>
-      <ToastContainer />
+      </div>
     </Main>
   );
 }

@@ -1,170 +1,316 @@
-import React, { useContext, useEffect, useState } from "react";
+import React, { useContext, useEffect, useMemo, useState } from "react";
 import stockManagementApis from "../apis/StockManagementApis";
+import { Container, Row, Col, Card, Button, Modal, Form, Badge } from "react-bootstrap";
 import { Link, NavLink } from "react-router-dom";
 import DataTable from "react-data-table-component";
+import { TextField, InputAdornment } from "@mui/material";
 import Main from "../layout/Main";
 import { AuthContext } from "../context/AuthProvider";
 import { toast, ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
-import { format, parseISO } from "date-fns";
 import moment from "moment";
+import * as XLSX from "xlsx";
+import { saveAs } from "file-saver";
 import "../css/loader.css";
 
-const PURPLE = "#534AB7";
-const CORAL = "#D85A30";
-
-const cardBase = {
-  background: "#fff",
-  border: "0.5px solid rgba(0,0,0,0.09)",
-  borderRadius: 12,
-  overflow: "hidden",
+// Theme Tokens
+const COLORS = {
+  primary: "#534AB7",
+  primaryHover: "#4338CA",
+  primaryLight: "#EEEDFE",
+  success: "#1D9E75",
+  successLight: "#E1F5EE",
+  warning: "#D97706",
+  warningLight: "#FEF3C7",
+  danger: "#DC2626",
+  dangerLight: "#FEE2E2",
+  dark: "#1E293B",
+  cardBorder: "rgba(0, 0, 0, 0.08)",
 };
 
 export default function Issue() {
+  const { loginData, permissions, hasPermission } = useContext(AuthContext);
+
   const [issue, setIssue] = useState([]);
   const [filterText, setFilterText] = useState("");
-  const [filterMonth, setFilterMonth] = useState(moment().format("YYYY-MM"));
-  const [filteredCategories, setFilteredCategories] = useState([]);
+  const [filterMonth, setFilterMonth] = useState("");
+  const [statusFilter, setStatusFilter] = useState("all"); // 'all' | 'this_month' | 'approved' | 'pending'
   const [showModal, setShowModal] = useState(false);
   const [employees, setEmployees] = useState([]);
   const [products, setProducts] = useState([]);
   const [branches, setBranches] = useState([]);
-  const [, setValidated] = useState(false);
   const [availableQty, setAvailableQty] = useState(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [loader, setLoader] = useState(false);
-  const { loginData, permissions } = useContext(AuthContext);
 
   const [currentIssue, setCurrentIssue] = useState({
-    id: "", user_id: loginData.id, product_id: "", branch_id: "",
-    status: "", description: "", quantity: "", issue_date: "",
-    employee_id: "", updated_by: loginData?.id || null,
+    id: "",
+    user_id: loginData?.id || "",
+    product_id: "",
+    branch_id: "",
+    status: "approved",
+    description: "",
+    quantity: "",
+    issue_date: moment().format("YYYY-MM-DD"),
+    employee_id: "",
+    updated_by: loginData?.id || null,
   });
 
   const handleGetData = async () => {
+    setLoader(true);
     try {
       const result = await stockManagementApis.getIssue();
-      setIssue(result);
-      setFilteredCategories(result);
+      setIssue(Array.isArray(result) ? result : []);
     } catch (error) {
       setIssue([]);
+      toast.error("Failed to load provisions");
+    } finally {
+      setLoader(false);
     }
   };
 
-  useEffect(() => { handleGetData(); }, []);
-
-  const formatDate = (d) => { try { return moment(d).format("DD/MM/YYYY"); } catch { return ""; } };
+  useEffect(() => {
+    handleGetData();
+  }, []);
 
   useEffect(() => {
-    const filtered = issue.filter((item) => {
-      const search = filterText.toLowerCase();
-      const matchesSearch =
-        String(item.user_name || "").toLowerCase().includes(search) ||
-        String(item.employee_name || "").toLowerCase().includes(search) ||
-        String(item.product_name || "").toLowerCase().includes(search) ||
-        String(item.quantity || "").toLowerCase().includes(search) ||
-        formatDate(item.issue_date).toLowerCase().includes(search) ||
-        String(item.status || "").toLowerCase().includes(search);
-      const matchesMonth = filterMonth
-        ? moment(item.issue_date).format("YYYY-MM") === filterMonth : true;
-      return matchesSearch && matchesMonth;
-    });
-    setFilteredCategories(filtered);
-  }, [filterText, filterMonth, issue]);
-
-  useEffect(() => {
-    const fetchRelated = async () => {
+    const fetchRelations = async () => {
       try {
         const [emp, branch, product] = await Promise.all([
           stockManagementApis.getEmployees(),
           stockManagementApis.getBranch(),
           stockManagementApis.getProduct(),
         ]);
-        setEmployees(emp); setBranches(branch); setProducts(product);
-      } catch (e) { throw e; }
+        setEmployees(Array.isArray(emp) ? emp : []);
+        setBranches(Array.isArray(branch) ? branch : []);
+        setProducts(Array.isArray(product) ? product : []);
+      } catch (e) {
+        setEmployees([]);
+        setBranches([]);
+        setProducts([]);
+      }
     };
-    fetchRelated();
+    fetchRelations();
   }, []);
 
   useEffect(() => {
     if (currentIssue.product_id) {
       const p = products.find((p) => p.id === currentIssue.product_id);
-      setAvailableQty(p ? p.total_buy_quantity - p.total_issue_quantity : 0);
-    } else { setAvailableQty(null); }
+      const avail = p ? parseFloat(p.total_buy_quantity || 0) - parseFloat(p.total_issue_quantity || 0) : 0;
+      setAvailableQty(Math.max(0, avail));
+    } else {
+      setAvailableQty(null);
+    }
   }, [currentIssue.product_id, products]);
+
+  // Compute KPI metrics
+  const kpis = useMemo(() => {
+    const currentMonthStr = moment().format("YYYY-MM");
+    let totalQty = 0;
+    let thisMonthQty = 0;
+    let thisMonthCount = 0;
+    const recipientSet = new Set();
+    const branchSet = new Set();
+
+    issue.forEach((item) => {
+      const q = parseFloat(item.quantity || 0);
+      totalQty += q;
+      if (item.employee_name) recipientSet.add(item.employee_name);
+      if (item.branch_name) branchSet.add(item.branch_name);
+
+      const isCurrentMonth = moment(item.issue_date).format("YYYY-MM") === currentMonthStr;
+      if (isCurrentMonth) {
+        thisMonthCount++;
+        thisMonthQty += q;
+      }
+    });
+
+    return {
+      totalDispatches: issue.length,
+      totalUnits: Math.round(totalQty),
+      thisMonthCount,
+      thisMonthUnits: Math.round(thisMonthQty),
+      uniqueRecipients: recipientSet.size,
+      uniqueBranches: branchSet.size,
+    };
+  }, [issue]);
+
+  // Filtered issue list
+  const filteredIssues = useMemo(() => {
+    const search = filterText.toLowerCase().trim();
+    const currentMonthStr = moment().format("YYYY-MM");
+
+    return issue.filter((item) => {
+      const issueDateFormatted = item.issue_date ? moment(item.issue_date).format("DD/MM/YYYY") : "";
+      const itemMonth = item.issue_date ? moment(item.issue_date).format("YYYY-MM") : "";
+
+      // Month filter
+      if (filterMonth && itemMonth !== filterMonth) {
+        return false;
+      }
+
+      // Status pill filter
+      if (statusFilter === "this_month") {
+        if (itemMonth !== currentMonthStr) return false;
+      } else if (statusFilter === "approved") {
+        if (item.status && item.status !== "approved" && item.status !== "issued") return false;
+      } else if (statusFilter === "pending") {
+        if (item.status !== "pending") return false;
+      }
+
+      // Search filter
+      if (!search) return true;
+      const user = String(item.user_name || "").toLowerCase();
+      const emp = String(item.employee_name || "").toLowerCase();
+      const prod = String(item.product_name || "").toLowerCase();
+      const branch = String(item.branch_name || "").toLowerCase();
+      const qty = String(item.quantity || "").toLowerCase();
+      const status = String(item.status || "").toLowerCase();
+      const desc = String(item.description || "").toLowerCase();
+
+      return (
+        user.includes(search) ||
+        emp.includes(search) ||
+        prod.includes(search) ||
+        branch.includes(search) ||
+        qty.includes(search) ||
+        status.includes(search) ||
+        desc.includes(search) ||
+        issueDateFormatted.toLowerCase().includes(search)
+      );
+    });
+  }, [issue, filterText, filterMonth, statusFilter]);
 
   const isValidIssueDate = (date) => {
     const today = moment().endOf("day");
-    const start = moment().subtract(1, "months").startOf("month");
+    const start = moment().subtract(2, "months").startOf("month");
     const ok = moment(date).isSameOrBefore(today) && moment(date).isSameOrAfter(start);
-    if (!ok) toast.error("Issue date must be between start of last month and today.");
+    if (!ok) toast.error("Issue date must be within the past 2 months.");
     return ok;
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setLoader(true);
-    if (!isValidIssueDate(currentIssue.issue_date)) { setLoader(false); return; }
-    const product = products.find((p) => p.id === currentIssue.product_id);
-    if (!product) { toast.error("Product not found!"); setLoader(false); return; }
+    if (!isValidIssueDate(currentIssue.issue_date)) {
+      setLoader(false);
+      return;
+    }
+
+    const prod = products.find((p) => p.id === currentIssue.product_id);
+    if (!prod) {
+      toast.error("Please select a product!");
+      setLoader(false);
+      return;
+    }
+
+    const qty = parseFloat(currentIssue.quantity);
+    if (isNaN(qty) || qty <= 0) {
+      toast.error("Please enter a valid quantity!");
+      setLoader(false);
+      return;
+    }
+
     setIsSubmitting(true);
     try {
       if (currentIssue.id) {
         const prev = issue.find((i) => i.id === currentIssue.id);
-        const diff = currentIssue.quantity - prev.quantity;
-        if (diff > 0 && product.total_buy_quantity < diff) { toast.error("Insufficient stock!"); setLoader(false); return; }
+        const diff = qty - parseFloat(prev.quantity || 0);
+        const avail = parseFloat(prod.total_buy_quantity || 0) - parseFloat(prod.total_issue_quantity || 0);
+        if (diff > 0 && avail < diff) {
+          toast.error(`Insufficient stock! Only ${avail} available.`);
+          setLoader(false);
+          setIsSubmitting(false);
+          return;
+        }
+
         await stockManagementApis.updateIssue(currentIssue.id, currentIssue);
-        await stockManagementApis.updateProduct(product.id, {
-          ...product,
-          total_issue_quantity: parseInt(product.total_issue_quantity) + parseInt(diff),
-          available_stock: parseInt(product.available_stock) - parseInt(diff),
+        await stockManagementApis.updateProduct(prod.id, {
+          ...prod,
+          total_issue_quantity: parseFloat(prod.total_issue_quantity || 0) + diff,
         });
-        toast.success("Provision updated!");
+        toast.success("Provision updated successfully!");
       } else {
-        if (product.total_buy_quantity < currentIssue.quantity) { toast.error("Insufficient stock!"); setLoader(false); return; }
+        const avail = parseFloat(prod.total_buy_quantity || 0) - parseFloat(prod.total_issue_quantity || 0);
+        if (avail < qty) {
+          toast.error(`Insufficient stock! Only ${avail} available.`);
+          setLoader(false);
+          setIsSubmitting(false);
+          return;
+        }
+
         const res = await stockManagementApis.addIssue(currentIssue);
-        if (res.success) toast.success("Provision added!");
-        await stockManagementApis.updateProductById(product.id, {
-          ...product,
-          available_stock: parseInt(product.available_stock) - parseInt(currentIssue.quantity),
-          total_issue_quantity: parseInt(product.total_issue_quantity) + parseInt(currentIssue.quantity),
+        if (res.success) toast.success("Provision recorded successfully!");
+        await stockManagementApis.updateProductById(prod.id, {
+          ...prod,
+          total_issue_quantity: parseFloat(prod.total_issue_quantity || 0) + qty,
         });
       }
-      setShowModal(false); handleGetData();
-    } catch (err) { toast.error("Error submitting provision."); }
-    setLoader(false); setIsSubmitting(false); setValidated(true);
+
+      setShowModal(false);
+      handleGetData();
+    } catch (err) {
+      toast.error("Error submitting provision: " + err.message);
+    } finally {
+      setLoader(false);
+      setIsSubmitting(false);
+    }
   };
 
   const handleShowModal = (iss = null) => {
-    setValidated(false);
-    setCurrentIssue(iss ? {
-      id: iss.id, user_id: iss.user_id || loginData.id, product_id: iss.product_id,
-      branch_id: iss.branch_id, status: iss.status, description: iss.description,
-      quantity: iss.quantity, issue_date: iss.issue_date, employee_id: iss.employee_name,
-      created_by: loginData.id, updeted_by: loginData.id,
-    } : {
-      id: "", user_id: loginData.id, product_id: "", branch_id: "", status: "",
-      description: "", quantity: "", issue_date: "", employee_id: "",
-      created_by: loginData.id, updeted_by: loginData.id,
-    });
+    setCurrentIssue(
+      iss
+        ? {
+            id: iss.id,
+            user_id: iss.user_id || loginData?.id,
+            product_id: iss.product_id,
+            branch_id: iss.branch_id,
+            status: iss.status || "approved",
+            description: iss.description || "",
+            quantity: iss.quantity,
+            issue_date: iss.issue_date ? moment(iss.issue_date).format("YYYY-MM-DD") : moment().format("YYYY-MM-DD"),
+            employee_id: iss.employee_id || iss.employee_name,
+            updated_by: loginData?.id,
+          }
+        : {
+            id: "",
+            user_id: loginData?.id,
+            product_id: "",
+            branch_id: "",
+            status: "approved",
+            description: "",
+            quantity: "",
+            issue_date: moment().format("YYYY-MM-DD"),
+            employee_id: "",
+            created_by: loginData?.id,
+            updated_by: loginData?.id,
+          }
+    );
     setShowModal(true);
   };
 
   const deleteHandle = async (issueId) => {
-    if (!window.confirm("Delete this provision?")) return;
+    if (!window.confirm("Are you sure you want to delete this provision?")) return;
     try {
       const iss = issue.find((i) => i.id === issueId);
-      const product = products.find((p) => p.id === iss?.product_id);
-      if (!iss || !product) { toast.error("Record not found."); return; }
-      await stockManagementApis.updateProductById(product.id, {
-        ...product,
-        total_issue_quantity: parseInt(product.total_issue_quantity) - parseInt(iss.quantity),
-        available_stock: parseInt(product.available_stock) + parseInt(iss.quantity),
-      });
+      const prod = products.find((p) => p.id === iss?.product_id);
+      if (!iss) {
+        toast.error("Record not found.");
+        return;
+      }
+
+      if (prod) {
+        await stockManagementApis.updateProductById(prod.id, {
+          ...prod,
+          total_issue_quantity: Math.max(0, parseFloat(prod.total_issue_quantity || 0) - parseFloat(iss.quantity || 0)),
+        });
+      }
       await stockManagementApis.deleteIssue(issueId);
-      toast.success("Provision deleted!");
+      toast.success("Provision deleted and stock restored!");
       handleGetData();
-    } catch { toast.error("Failed to delete."); }
+    } catch {
+      toast.error("Failed to delete provision.");
+    }
   };
 
   const handleInputChange = (e) => {
@@ -172,304 +318,778 @@ export default function Issue() {
     setCurrentIssue((prev) => ({ ...prev, [name]: value }));
   };
 
-  const hasAdd = permissions?.some((r) => r.name === "Admin" || r.name === "Super Admin");
-  const hasEdit = permissions?.some((r) => r.name === "Admin" || r.name === "Super Admin" || (r.name !== "Data Entry" && r.edit));
-  const hasDelete = permissions?.some((r) => r.name === "Admin" || r.name === "Super Admin" || (r.name !== "Data Entry" && r.del));
+  // Export to Excel
+  const exportToExcel = () => {
+    if (filteredIssues.length === 0) {
+      toast.info("No records to export.");
+      return;
+    }
+
+    const exportRows = filteredIssues.map((iss, idx) => ({
+      "S.No.": idx + 1,
+      "Dispatch Date": iss.issue_date ? moment(iss.issue_date).format("DD/MM/YYYY") : "-",
+      Recipient: iss.employee_name || "-",
+      Product: iss.product_name || "-",
+      "Issued Quantity": parseFloat(iss.quantity || 0),
+      Branch: iss.branch_name || "Main",
+      "Issued By": iss.user_name || "System",
+      Status: iss.status || "Approved",
+      Notes: iss.description || "-",
+    }));
+
+    const worksheet = XLSX.utils.json_to_sheet(exportRows);
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, "Provisions");
+
+    worksheet["!cols"] = Object.keys(exportRows[0]).map((key) => ({
+      wch: Math.max(key.length + 3, 14),
+    }));
+
+    const excelBuffer = XLSX.write(workbook, { bookType: "xlsx", type: "array" });
+    const blob = new Blob([excelBuffer], {
+      type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    });
+    saveAs(blob, `Provisions_Report_${moment().format("YYYY-MM-DD")}.xlsx`);
+    toast.success(`Exported ${exportRows.length} dispatch records!`);
+  };
+
+  const hasAdd = hasPermission('provisions', 'add');
+  const hasEdit = hasPermission('provisions', 'edit');
+  const hasDelete = hasPermission('provisions', 'del');
 
   const columns = [
     {
-      name: <span style={{ fontSize: 12, fontWeight: 600, color: "#fff" }}>S.No.</span>,
-      selector: (_, i) => i + 1, width: "60px",
-      cell: (_, i) => <span style={{ fontSize: 13, color: "#888" }}>{i + 1}</span>,
-    },
-    {
-      name: <span style={{ fontSize: 12, fontWeight: 600, color: "#fff" }}>User</span>,
-      selector: (r) => r.user_name, sortable: true,
-      cell: (r) => (
-        <NavLink to={`/issueDetailPage/${r.id}`} style={{ color: PURPLE, textDecoration: "none", fontSize: 13, fontWeight: 500 }}>
-          {r.user_name}
-        </NavLink>
-      ),
-    },
-    {
-      name: <span style={{ fontSize: 12, fontWeight: 600, color: "#fff" }}>Employee</span>,
-      selector: (r) => r.employee_name, sortable: true,
-      cell: (r) => <span style={{ fontSize: 13 }}>{r.employee_name}</span>,
-    },
-    {
-      name: <span style={{ fontSize: 12, fontWeight: 600, color: "#fff" }}>Product</span>,
-      selector: (r) => r.product_name, sortable: true,
-      cell: (r) => <span style={{ fontSize: 13 }}>{r.product_name}</span>,
-    },
-    {
-      name: <span style={{ fontSize: 12, fontWeight: 600, color: "#fff" }}>Qty</span>,
-      selector: (r) => r.quantity, sortable: true, width: "70px",
-      cell: (r) => (
-        <span style={{ fontSize: 13, fontWeight: 500, background: "#EEEDFE", color: "#3C3489", padding: "2px 8px", borderRadius: 99, whiteSpace: "nowrap" }}>
-          {r.quantity}
+      name: "Ref",
+      selector: (_, i) => `ISS-${String(i + 1).padStart(3, "0")}`,
+      width: "90px",
+      cell: (_, i) => (
+        <span
+          style={{
+            fontFamily: "monospace",
+            fontSize: "12px",
+            fontWeight: "600",
+            color: "#475569",
+            backgroundColor: "#F1F5F9",
+            padding: "3px 7px",
+            borderRadius: "5px",
+          }}
+        >
+          {`ISS-${String(i + 1).padStart(3, "0")}`}
         </span>
       ),
     },
     {
-      name: <span style={{ fontSize: 12, fontWeight: 600, color: "#fff" }}>Issue Date</span>,
-      selector: (r) => r.issue_date, sortable: true,
-      cell: (r) => <span style={{ fontSize: 13, color: "#555" }}>{format(parseISO(r.issue_date), "dd/MM/yyyy")}</span>,
+      name: "Product & Recipient",
+      selector: (r) => r.product_name,
+      sortable: true,
+      grow: 2,
+      cell: (r) => (
+        <div className="py-2">
+          <NavLink
+            to={`/issueDetailPage/${r.id}`}
+            style={{
+              textDecoration: "none",
+              fontWeight: "600",
+              fontSize: "14px",
+              color: COLORS.primary,
+            }}
+          >
+            {r.product_name || "Item"}
+          </NavLink>
+          <div className="d-flex align-items-center gap-2 mt-1 text-muted" style={{ fontSize: "12px" }}>
+            <span>
+              <i className="fa-solid fa-user-tie me-1" style={{ color: "#64748B" }}></i>
+              <b>{r.employee_name || "Employee"}</b>
+            </span>
+            <span>•</span>
+            <span>
+              <i className="fa-solid fa-building me-1"></i>
+              {r.branch_name || "Main Branch"}
+            </span>
+          </div>
+        </div>
+      ),
     },
     {
-      name: <span style={{ fontSize: 12, fontWeight: 600, color: "#fff" }}>Actions</span>,
+      name: "Dispatch Date",
+      selector: (r) => r.issue_date,
+      sortable: true,
+      width: "140px",
       cell: (r) => (
-        <div style={{ display: "flex", gap: 6 }}>
+        <div style={{ fontSize: "13px" }}>
+          <div className="fw-medium text-dark">
+            {r.issue_date ? moment(r.issue_date).format("DD MMM YYYY") : "—"}
+          </div>
+          <small className="text-muted">{r.issue_date ? moment(r.issue_date).fromNow() : ""}</small>
+        </div>
+      ),
+    },
+    {
+      name: "Quantity",
+      selector: (r) => parseFloat(r.quantity || 0),
+      sortable: true,
+      width: "120px",
+      cell: (r) => (
+        <Badge
+          bg="primary"
+          style={{
+            backgroundColor: `${COLORS.primaryLight} !important`,
+            color: `${COLORS.primary} !important`,
+            fontSize: "12px",
+            padding: "5px 10px",
+            fontWeight: "700",
+            borderRadius: "6px",
+          }}
+        >
+          {r.quantity} units
+        </Badge>
+      ),
+    },
+    {
+      name: "Status",
+      selector: (r) => r.status,
+      sortable: true,
+      width: "125px",
+      cell: (r) => (
+        <Badge
+          bg={r.status === "approved" || r.status === "issued" ? "success" : "warning"}
+          style={{
+            padding: "5px 10px",
+            borderRadius: "20px",
+            fontSize: "11px",
+            backgroundColor:
+              r.status === "approved" || r.status === "issued"
+                ? "#10B981 !important"
+                : "#F59E0B !important",
+          }}
+        >
+          <i
+            className={`fa-solid ${
+              r.status === "approved" || r.status === "issued" ? "fa-circle-check" : "fa-clock"
+            } me-1`}
+          ></i>
+          {r.status || "Approved"}
+        </Badge>
+      ),
+    },
+    {
+      name: "Actions",
+      width: "140px",
+      ignoreRowClick: true,
+      allowOverflow: true,
+      button: true,
+      cell: (r) => (
+        <div className="d-flex align-items-center gap-1">
+          <NavLink to={`/issueDetailPage/${r.id}`}>
+            <Button
+              size="sm"
+              variant="light"
+              style={{
+                width: "32px",
+                height: "32px",
+                padding: 0,
+                borderRadius: "7px",
+                backgroundColor: "#F1F5F9",
+                color: "#475569",
+                border: "0.5px solid #CBD5E1",
+              }}
+            >
+              <i className="fa-regular fa-eye" style={{ fontSize: "12px" }}></i>
+            </Button>
+          </NavLink>
+
           {hasEdit && (
-            <button onClick={() => handleShowModal(r)} style={{
-              width: 30, height: 30, border: `0.5px solid ${PURPLE}`, borderRadius: 7,
-              background: "transparent", color: PURPLE, cursor: "pointer", fontSize: 13,
-              display: "flex", alignItems: "center", justifyContent: "center",
-            }}>
-              <i className="fa-regular fa-edit"></i>
-            </button>
+            <Button
+              size="sm"
+              variant="light"
+              onClick={() => handleShowModal(r)}
+              style={{
+                width: "32px",
+                height: "32px",
+                padding: 0,
+                borderRadius: "7px",
+                backgroundColor: "#EFF6FF",
+                color: "#2563EB",
+                border: "0.5px solid #BFDBFE",
+              }}
+            >
+              <i className="fa-regular fa-pen-to-square" style={{ fontSize: "12px" }}></i>
+            </Button>
           )}
+
           {hasDelete && (
-            <button onClick={() => deleteHandle(r.id)} style={{
-              width: 30, height: 30, border: `0.5px solid ${CORAL}`, borderRadius: 7,
-              background: "transparent", color: CORAL, cursor: "pointer", fontSize: 13,
-              display: "flex", alignItems: "center", justifyContent: "center",
-            }}>
-              <i className="fa fa-trash"></i>
-            </button>
+            <Button
+              size="sm"
+              variant="light"
+              onClick={() => deleteHandle(r.id)}
+              style={{
+                width: "32px",
+                height: "32px",
+                padding: 0,
+                borderRadius: "7px",
+                backgroundColor: "#FEF2F2",
+                color: "#DC2626",
+                border: "0.5px solid #FECACA",
+              }}
+            >
+              <i className="fa-regular fa-trash-can" style={{ fontSize: "12px" }}></i>
+            </Button>
           )}
         </div>
       ),
-      ignoreRowClick: true, button: true, width: "100px",
     },
   ];
 
-  const customStyles = {
-    headRow: { style: { background: "#1e2128", minHeight: 40, borderRadius: "8px 8px 0 0" } },
-    headCells: { style: { background: "#1e2128", color: "#fff", fontSize: 12, fontWeight: 600, paddingLeft: 12 } },
-    rows: { style: { minHeight: 44, fontSize: 13, borderBottom: "0.5px solid rgba(0,0,0,0.06)" }, highlightOnHoverStyle: { background: "#f5f4ff", transition: "background 0.15s" } },
-    cells: { style: { paddingLeft: 12 } },
-    pagination: { style: { fontSize: 13, borderTop: "0.5px solid rgba(0,0,0,0.08)" } },
+  const customTableStyles = {
+    headRow: {
+      style: {
+        backgroundColor: "#1E293B",
+        color: "#F8FAFC",
+        minHeight: "48px",
+        fontWeight: "600",
+        fontSize: "13px",
+      },
+    },
+    headCells: {
+      style: { color: "#F8FAFC" },
+    },
+    rows: {
+      style: {
+        minHeight: "56px",
+        fontSize: "13.5px",
+        color: "#334155",
+        "&:not(:last-of-type)": {
+          borderBottomStyle: "solid",
+          borderBottomWidth: "1px",
+          borderBottomColor: "#F1F5F9",
+        },
+      },
+      highlightOnHoverStyle: {
+        backgroundColor: "#F8FAFC",
+        borderBottomColor: "#E2E8F0",
+        outline: "none",
+      },
+    },
   };
-
-  const inputStyle = {
-    width: "100%", padding: "8px 12px", fontSize: 13,
-    border: "0.5px solid rgba(0,0,0,0.15)", borderRadius: 8,
-    background: "#fafafa", outline: "none", color: "#1a1a1a",
-    fontFamily: "system-ui, sans-serif",
-  };
-  const labelStyle = { fontSize: 12, fontWeight: 500, color: "#555", marginBottom: 4, display: "block" };
 
   return (
     <>
-      <style>{`
-        .issue-input:focus { border-color: #534AB7 !important; box-shadow: 0 0 0 2px rgba(83,74,183,0.12); background: #fff !important; }
-        .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.35); z-index: 2000; display: flex; align-items: center; justify-content: center; padding: 16px; }
-        .modal-box { background: #fff; border-radius: 14px; width: 100%; max-width: 680px; max-height: 90vh; overflow-y: auto; box-shadow: 0 20px 60px rgba(0,0,0,0.18); }
-        .modal-header { display: flex; justify-content: space-between; align-items: center; padding: 18px 24px 14px; border-bottom: 0.5px solid rgba(0,0,0,0.08); }
-        .modal-body { padding: 20px 24px; }
-        .modal-footer { padding: 14px 24px 18px; border-top: 0.5px solid rgba(0,0,0,0.08); display: flex; justify-content: flex-end; gap: 10px; }
-        .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 14px; }
-        @media (max-width: 600px) { .form-row { grid-template-columns: 1fr; } }
-      `}</style>
-
       {loader && (
-        <div className="loading-state"><div className="loading"></div></div>
+        <div className="loading-state">
+          <div className="loading"></div>
+        </div>
       )}
 
       <Main>
-        <div style={{ padding: "16px 20px 0" }}>
-          {/* Breadcrumb */}
-          <nav style={{ fontSize: 13, color: "#aaa", marginBottom: 16 }}>
-            <Link to="/Home" style={{ color: PURPLE, textDecoration: "none" }}>Home</Link>
-            <span style={{ margin: "0 6px" }}>/</span>
-            <span style={{ color: "#333", fontWeight: 500 }}>Provisions</span>
-          </nav>
+        {/* Breadcrumb Header */}
+        <div className="my-3 px-3 d-flex justify-content-between align-items-center flex-wrap gap-2">
+          <div style={{ fontSize: "14px" }}>
+            <Link to="/Home" className="text-decoration-none" style={{ color: COLORS.primary, fontWeight: "500" }}>
+              <i className="fa-solid fa-house me-1"></i> Home
+            </Link>
+            <span className="text-muted mx-2">/</span>
+            <span className="text-secondary fw-semibold">Provisions & Dispatches</span>
+          </div>
 
-          {/* Page card */}
-          <div style={{ ...cardBase, marginBottom: 24 }}>
-            {/* Card header */}
-            <div style={{ padding: "16px 20px", borderBottom: "0.5px solid rgba(0,0,0,0.07)", display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 12 }}>
-              <div>
-                <p style={{ fontSize: 16, fontWeight: 500, color: "#1a1a1a", margin: 0 }}>Provision List</p>
-                <p style={{ fontSize: 12, color: "#aaa", margin: 0 }}>{filteredCategories.length} records</p>
-              </div>
+          <div className="d-flex align-items-center gap-2">
+            <Button
+              variant="outline-secondary"
+              size="sm"
+              onClick={handleGetData}
+              style={{ borderRadius: "8px", fontSize: "13px" }}
+            >
+              <i className="fa-solid fa-arrows-rotate me-1"></i> Refresh
+            </Button>
+            <Button
+              variant="outline-success"
+              size="sm"
+              onClick={exportToExcel}
+              style={{ borderRadius: "8px", fontSize: "13px" }}
+            >
+              <i className="fa-solid fa-file-excel me-1"></i> Export Excel
+            </Button>
+            {hasAdd && (
+              <>
+                <NavLink to="/addmultiprovision" style={{ textDecoration: "none" }}>
+                  <Button
+                    variant="outline-primary"
+                    size="sm"
+                    style={{
+                      borderRadius: "8px",
+                      fontSize: "13px",
+                      borderColor: COLORS.primary,
+                      color: COLORS.primary,
+                    }}
+                  >
+                    <i className="fa-solid fa-layer-group me-1"></i> Bulk Provision
+                  </Button>
+                </NavLink>
 
-              <div style={{ display: "flex", gap: 10, flexWrap: "wrap", alignItems: "center" }}>
-                {/* Search */}
-                <div style={{ position: "relative" }}>
-                  <i className="fa fa-search" style={{ position: "absolute", left: 10, top: "50%", transform: "translateY(-50%)", fontSize: 12, color: "#aaa" }}></i>
-                  <input
-                    className="issue-input"
-                    style={{ ...inputStyle, paddingLeft: 30, width: 200 }}
-                    placeholder="Search…"
-                    value={filterText}
-                    onChange={(e) => setFilterText(e.target.value)}
-                  />
-                </div>
+                <Button
+                  size="sm"
+                  onClick={() => handleShowModal()}
+                  style={{
+                    backgroundColor: COLORS.primary,
+                    borderColor: COLORS.primary,
+                    borderRadius: "8px",
+                    fontSize: "13px",
+                    fontWeight: "500",
+                  }}
+                >
+                  <i className="fa-solid fa-plus me-1"></i> Add Provision
+                </Button>
+              </>
+            )}
+          </div>
+        </div>
 
-                {/* Month filter */}
-                <input
-                  className="issue-input"
-                  type="month"
-                  style={{ ...inputStyle, width: 160 }}
-                  value={filterMonth}
-                  onChange={(e) => setFilterMonth(e.target.value)}
-                />
-
-                {hasAdd && (
-                  <div style={{ display: "flex", gap: 8 }}>
-                    <NavLink to="/addmultiprovision" style={{ textDecoration: "none" }}>
-                      <button style={{
-                        display: "flex", alignItems: "center", gap: 6,
-                        padding: "8px 14px", borderRadius: 8, border: `0.5px solid ${PURPLE}`,
-                        background: "transparent", color: PURPLE, fontSize: 13, fontWeight: 500, cursor: "pointer",
-                      }}>
-                        <i className="fa fa-plus" style={{ fontSize: 11 }}></i> Multi Provision
-                      </button>
-                    </NavLink>
-                    <button
-                      onClick={() => handleShowModal()}
+        <Container fluid className="px-3">
+          {/* Provisions KPI Metric Deck */}
+          <Row className="g-3 mb-4">
+            <Col xs={12} sm={6} md={3}>
+              <Card
+                className="border-0 shadow-sm h-100 cursor-pointer"
+                onClick={() => setStatusFilter("all")}
+                style={{
+                  borderRadius: "12px",
+                  borderLeft: `4px solid ${COLORS.primary}`,
+                  backgroundColor: statusFilter === "all" ? "#FAF5FF" : "#FFFFFF",
+                }}
+              >
+                <Card.Body className="p-3">
+                  <div className="d-flex justify-content-between align-items-start">
+                    <div>
+                      <small className="text-muted text-uppercase fw-semibold" style={{ fontSize: "11px" }}>
+                        Total Provisions
+                      </small>
+                      <h4 className="mb-0 fw-bold mt-1" style={{ color: COLORS.dark }}>
+                        {kpis.totalDispatches}
+                      </h4>
+                    </div>
+                    <div
                       style={{
-                        display: "flex", alignItems: "center", gap: 6,
-                        padding: "8px 14px", borderRadius: 8, border: "none",
-                        background: PURPLE, color: "#fff", fontSize: 13, fontWeight: 500, cursor: "pointer",
+                        width: "36px",
+                        height: "36px",
+                        borderRadius: "8px",
+                        backgroundColor: COLORS.primaryLight,
+                        color: COLORS.primary,
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
                       }}
                     >
-                      <i className="fa fa-plus" style={{ fontSize: 11 }}></i> Add Provision
-                    </button>
+                      <i className="fa-solid fa-hand-holding"></i>
+                    </div>
                   </div>
+                  <div className="mt-2 text-muted" style={{ fontSize: "11px" }}>
+                    Lifetime dispatch transactions
+                  </div>
+                </Card.Body>
+              </Card>
+            </Col>
+
+            <Col xs={12} sm={6} md={3}>
+              <Card
+                className="border-0 shadow-sm h-100"
+                style={{ borderRadius: "12px", borderLeft: `4px solid ${COLORS.success}`, backgroundColor: "#FFFFFF" }}
+              >
+                <Card.Body className="p-3">
+                  <div className="d-flex justify-content-between align-items-start">
+                    <div>
+                      <small className="text-muted text-uppercase fw-semibold" style={{ fontSize: "11px" }}>
+                        Units Dispatched
+                      </small>
+                      <h4 className="mb-0 fw-bold mt-1" style={{ color: COLORS.success }}>
+                        {kpis.totalUnits.toLocaleString()}
+                      </h4>
+                    </div>
+                    <div
+                      style={{
+                        width: "36px",
+                        height: "36px",
+                        borderRadius: "8px",
+                        backgroundColor: COLORS.successLight,
+                        color: COLORS.success,
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                      }}
+                    >
+                      <i className="fa-solid fa-box-open"></i>
+                    </div>
+                  </div>
+                  <div className="mt-2 text-muted" style={{ fontSize: "11px" }}>
+                    Total stock units consumed
+                  </div>
+                </Card.Body>
+              </Card>
+            </Col>
+
+            <Col xs={12} sm={6} md={3}>
+              <Card
+                className="border-0 shadow-sm h-100 cursor-pointer"
+                onClick={() => setStatusFilter("this_month")}
+                style={{
+                  borderRadius: "12px",
+                  borderLeft: "4px solid #2563EB",
+                  backgroundColor: statusFilter === "this_month" ? "#EFF6FF" : "#FFFFFF",
+                }}
+              >
+                <Card.Body className="p-3">
+                  <div className="d-flex justify-content-between align-items-start">
+                    <div>
+                      <small className="text-muted text-uppercase fw-semibold" style={{ fontSize: "11px" }}>
+                        This Month's Issues
+                      </small>
+                      <h4 className="mb-0 fw-bold mt-1" style={{ color: "#2563EB" }}>
+                        {kpis.thisMonthUnits}
+                      </h4>
+                    </div>
+                    <div
+                      style={{
+                        width: "36px",
+                        height: "36px",
+                        borderRadius: "8px",
+                        backgroundColor: "#DBEAFE",
+                        color: "#2563EB",
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                      }}
+                    >
+                      <i className="fa-solid fa-calendar-day"></i>
+                    </div>
+                  </div>
+                  <div className="mt-2 text-muted" style={{ fontSize: "11px" }}>
+                    {kpis.thisMonthCount} transaction(s) in {moment().format("MMMM")}
+                  </div>
+                </Card.Body>
+              </Card>
+            </Col>
+
+            <Col xs={12} sm={6} md={3}>
+              <Card
+                className="border-0 shadow-sm h-100"
+                style={{ borderRadius: "12px", borderLeft: `4px solid ${COLORS.warning}`, backgroundColor: "#FFFFFF" }}
+              >
+                <Card.Body className="p-3">
+                  <div className="d-flex justify-content-between align-items-start">
+                    <div>
+                      <small className="text-muted text-uppercase fw-semibold" style={{ fontSize: "11px" }}>
+                        Beneficiaries
+                      </small>
+                      <h4 className="mb-0 fw-bold mt-1" style={{ color: COLORS.warning }}>
+                        {kpis.uniqueRecipients}
+                      </h4>
+                    </div>
+                    <div
+                      style={{
+                        width: "36px",
+                        height: "36px",
+                        borderRadius: "8px",
+                        backgroundColor: COLORS.warningLight,
+                        color: COLORS.warning,
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                      }}
+                    >
+                      <i className="fa-solid fa-users"></i>
+                    </div>
+                  </div>
+                  <div className="mt-2 text-muted" style={{ fontSize: "11px" }}>
+                    Across {kpis.uniqueBranches} branch location(s)
+                  </div>
+                </Card.Body>
+              </Card>
+            </Col>
+          </Row>
+
+          {/* Master Table Card */}
+          <Card className="border-0 shadow-sm mb-4" style={{ borderRadius: "12px", overflow: "hidden" }}>
+            {/* Filter Toolbar */}
+            <div className="p-3 bg-white border-bottom">
+              <div className="d-flex justify-content-between align-items-center flex-wrap gap-3">
+                {/* Segmented Filter Pills */}
+                <div className="d-flex align-items-center gap-1 flex-wrap">
+                  <button
+                    className={`btn btn-sm ${statusFilter === "all" ? "btn-dark" : "btn-light"}`}
+                    onClick={() => setStatusFilter("all")}
+                    style={{ borderRadius: "20px", fontSize: "12px", padding: "5px 12px" }}
+                  >
+                    All Provisions <Badge bg="light" text="dark" className="ms-1">{kpis.totalDispatches}</Badge>
+                  </button>
+                  <button
+                    className={`btn btn-sm ${statusFilter === "this_month" ? "btn-primary" : "btn-light"}`}
+                    onClick={() => setStatusFilter("this_month")}
+                    style={{ borderRadius: "20px", fontSize: "12px", padding: "5px 12px" }}
+                  >
+                    This Month <Badge bg="light" text="dark" className="ms-1">{kpis.thisMonthCount}</Badge>
+                  </button>
+                  <button
+                    className={`btn btn-sm ${statusFilter === "approved" ? "btn-success" : "btn-light"}`}
+                    onClick={() => setStatusFilter("approved")}
+                    style={{ borderRadius: "20px", fontSize: "12px", padding: "5px 12px" }}
+                  >
+                    Approved
+                  </button>
+                  <button
+                    className={`btn btn-sm ${statusFilter === "pending" ? "btn-warning" : "btn-light"}`}
+                    onClick={() => setStatusFilter("pending")}
+                    style={{ borderRadius: "20px", fontSize: "12px", padding: "5px 12px" }}
+                  >
+                    Pending
+                  </button>
+                </div>
+
+                {/* Right Filter Inputs */}
+                <div className="d-flex align-items-center gap-2 flex-wrap">
+                  <Form.Control
+                    type="month"
+                    size="sm"
+                    value={filterMonth}
+                    onChange={(e) => setFilterMonth(e.target.value)}
+                    style={{ width: "160px", borderRadius: "8px", fontSize: "13px" }}
+                  />
+
+                  <TextField
+                    id="search"
+                    placeholder="Search product, staff, branch..."
+                    value={filterText}
+                    onChange={(e) => setFilterText(e.target.value)}
+                    size="small"
+                    sx={{
+                      minWidth: "220px",
+                      backgroundColor: "#fcfcfc",
+                      "& .MuiOutlinedInput-root": {
+                        borderRadius: "8px",
+                        fontSize: "13px",
+                      },
+                    }}
+                    InputProps={{
+                      startAdornment: (
+                        <InputAdornment position="start">
+                          <i className="fa-solid fa-magnifying-glass text-muted" style={{ fontSize: "12px" }}></i>
+                        </InputAdornment>
+                      ),
+                      endAdornment: filterText && (
+                        <InputAdornment position="end">
+                          <i
+                            className="fa-solid fa-xmark text-muted cursor-pointer"
+                            style={{ cursor: "pointer", fontSize: "12px" }}
+                            onClick={() => setFilterText("")}
+                          ></i>
+                        </InputAdornment>
+                      ),
+                    }}
+                  />
+                </div>
+              </div>
+
+              {/* Filter summary status line */}
+              <div className="d-flex justify-content-between align-items-center mt-2 pt-2 border-top">
+                <small className="text-muted" style={{ fontSize: "12px" }}>
+                  Showing <b>{filteredIssues.length}</b> of {issue.length} provisions
+                  {filterMonth && ` (Month: ${moment(filterMonth, "YYYY-MM").format("MMMM YYYY")})`}
+                  {statusFilter !== "all" && ` (Filter: ${statusFilter.replace("_", " ")})`}
+                  {filterText && ` matching "${filterText}"`}
+                </small>
+
+                {(filterText || filterMonth || statusFilter !== "all") && (
+                  <button
+                    className="btn btn-link p-0 text-decoration-none"
+                    style={{ fontSize: "12px", color: COLORS.primary }}
+                    onClick={() => {
+                      setFilterText("");
+                      setFilterMonth("");
+                      setStatusFilter("all");
+                    }}
+                  >
+                    Clear Filters
+                  </button>
                 )}
               </div>
             </div>
 
-            {/* Table */}
-            <div style={{ padding: "0 20px 20px" }}>
-              <DataTable
-                columns={columns}
-                data={filteredCategories}
-                pagination
-                fixedHeader
-                fixedHeaderScrollHeight="420px"
-                highlightOnHover
-                customStyles={customStyles}
-                dense
-              />
-            </div>
-          </div>
-        </div>
-
-        {/* Modal */}
-        {showModal && (
-          <div className="modal-overlay">
-            <div className="modal-box" onClick={(e) => e.stopPropagation()}>
-              <div className="modal-header">
-                <div>
-                  <p style={{ fontSize: 16, fontWeight: 500, margin: 0, color: "#1a1a1a" }}>
-                    {currentIssue.id ? "Update Provision" : "Add Provision"}
-                  </p>
-                  <p style={{ fontSize: 12, color: "#aaa", margin: 0 }}>Fill in the details below</p>
+            {/* DataTable */}
+            <DataTable
+              columns={columns}
+              data={filteredIssues}
+              pagination
+              paginationPerPage={15}
+              paginationRowsPerPageOptions={[10, 15, 25, 50]}
+              highlightOnHover
+              customStyles={customTableStyles}
+              noDataComponent={
+                <div className="p-5 text-center text-muted">
+                  <i className="fa-solid fa-box-open mb-2" style={{ fontSize: "36px", color: "#CBD5E1" }}></i>
+                  <p className="mb-0 fw-medium">No Provisions Found</p>
+                  <small>Try selecting a different month or search query.</small>
                 </div>
-                <button onClick={() => setShowModal(false)} style={{
-                  width: 30, height: 30, border: "0.5px solid rgba(0,0,0,0.12)", borderRadius: 8,
-                  background: "transparent", cursor: "pointer", fontSize: 16, color: "#888",
-                  display: "flex", alignItems: "center", justifyContent: "center",
-                }}>✕</button>
-              </div>
+              }
+            />
+          </Card>
 
-              <form onSubmit={handleSubmit}>
-                <div className="modal-body">
-                  <div className="form-row">
-                    <div>
-                      <label style={labelStyle}>User</label>
-                      <input className="issue-input" style={{ ...inputStyle, background: "#f5f5f5", color: "#888" }} value={loginData.name} disabled />
-                    </div>
-                    <div>
-                      <label style={labelStyle}>Employee <span style={{ color: CORAL }}>*</span></label>
-                      <select className="issue-input" name="employee_id" value={currentIssue.employee_id} onChange={handleInputChange} required style={inputStyle}>
-                        <option value="">Select employee</option>
-                        {employees.map((e) => <option key={e.id} value={e.id}>{e.name}</option>)}
-                      </select>
-                    </div>
-                  </div>
+          {/* Add / Edit Provision Modal */}
+          <Modal show={showModal} onHide={() => setShowModal(false)} backdrop="static" size="lg">
+            <Form onSubmit={handleSubmit}>
+              <Modal.Header closeButton style={{ backgroundColor: "#F8FAFC" }}>
+                <Modal.Title style={{ fontSize: "16px", fontWeight: "600", color: "#1E293B" }}>
+                  <i className="fa-solid fa-hand-holding me-2 text-primary"></i>
+                  {currentIssue.id ? "Update Provision" : "Issue / Dispatch Product"}
+                </Modal.Title>
+              </Modal.Header>
+              <Modal.Body className="p-4">
+                <Container fluid className="p-0">
+                  <Row>
+                    <Col md={6}>
+                      <Form.Group className="mb-3">
+                        <Form.Label className="fw-semibold text-secondary" style={{ fontSize: "13px" }}>
+                          Select Product <span className="text-danger">*</span>
+                        </Form.Label>
+                        <Form.Select
+                          name="product_id"
+                          value={currentIssue.product_id}
+                          onChange={handleInputChange}
+                          required
+                        >
+                          <option value="">Select Product to Dispatch</option>
+                          {products.map((p) => {
+                            const avail = Math.max(0, parseFloat(p.total_buy_quantity || 0) - parseFloat(p.total_issue_quantity || 0));
+                            return (
+                              <option key={p.id} value={p.id} disabled={avail <= 0}>
+                                {p.name} (Stock: {avail} {p.measurement_unit || "units"})
+                              </option>
+                            );
+                          })}
+                        </Form.Select>
+                      </Form.Group>
+                    </Col>
 
-                  <div className="form-row">
-                    <div>
-                      <label style={labelStyle}>Branch <span style={{ color: CORAL }}>*</span></label>
-                      <select className="issue-input" name="branch_id" value={currentIssue.branch_id} onChange={handleInputChange} required style={inputStyle}>
-                        <option value="">Select branch</option>
-                        {branches.map((b) => <option key={b.id} value={b.id}>{b.name}</option>)}
-                      </select>
-                    </div>
-                    <div>
-                      <label style={labelStyle}>Product <span style={{ color: CORAL }}>*</span></label>
-                      <select className="issue-input" name="product_id" value={currentIssue.product_id} onChange={handleInputChange} required style={inputStyle}>
-                        <option value="">Select product</option>
-                        {products.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
-                      </select>
-                    </div>
-                  </div>
+                    <Col md={6}>
+                      <Form.Group className="mb-3">
+                        <Form.Label className="fw-semibold text-secondary" style={{ fontSize: "13px" }}>
+                          Recipient Staff / Employee <span className="text-danger">*</span>
+                        </Form.Label>
+                        <Form.Select
+                          name="employee_id"
+                          value={currentIssue.employee_id}
+                          onChange={handleInputChange}
+                          required
+                        >
+                          <option value="">Select Recipient Employee</option>
+                          {employees.map((emp) => (
+                            <option key={emp.id} value={emp.id}>
+                              {emp.name} ({emp.designation || emp.role_name || "Staff"})
+                            </option>
+                          ))}
+                        </Form.Select>
+                      </Form.Group>
+                    </Col>
+                  </Row>
 
-                  <div className="form-row">
-                    <div>
-                      <label style={labelStyle}>Quantity <span style={{ color: CORAL }}>*</span></label>
-                      <input className="issue-input" type="number" name="quantity" value={currentIssue.quantity}
-                        onChange={handleInputChange} min={1} max={availableQty} disabled={availableQty <= 0} required style={inputStyle} />
-                      {availableQty !== null && (
-                        <span style={{ fontSize: 11, color: availableQty > 0 ? "#1D9E75" : CORAL, marginTop: 3, display: "block" }}>
-                          {availableQty > 0 ? `Available: ${availableQty}` : "Out of stock"}
-                        </span>
-                      )}
-                    </div>
-                    <div>
-                      <label style={labelStyle}>Issue Date <span style={{ color: CORAL }}>*</span></label>
-                      <input className="issue-input" type="date" name="issue_date" value={currentIssue.issue_date}
-                        onChange={handleInputChange}
-                        min={moment().subtract(1, "months").startOf("month").format("YYYY-MM-DD")}
-                        max={moment().format("YYYY-MM-DD")}
-                        required style={inputStyle}
-                      />
-                      <span style={{ fontSize: 11, color: "#aaa", marginTop: 3, display: "block" }}>
-                        From {moment().subtract(1, "months").startOf("month").format("DD MMM")} to today
-                      </span>
-                    </div>
-                  </div>
+                  <Row>
+                    <Col md={4}>
+                      <Form.Group className="mb-3">
+                        <Form.Label className="fw-semibold text-secondary" style={{ fontSize: "13px" }}>
+                          Dispatch Quantity <span className="text-danger">*</span>
+                        </Form.Label>
+                        <Form.Control
+                          type="number"
+                          min="1"
+                          step="any"
+                          placeholder="e.g. 5"
+                          name="quantity"
+                          value={currentIssue.quantity}
+                          onChange={handleInputChange}
+                          required
+                        />
+                        {availableQty !== null && (
+                          <Form.Text className={availableQty <= 0 ? "text-danger" : "text-success"} style={{ fontSize: "11px" }}>
+                            Current stock available: <b>{availableQty}</b>
+                          </Form.Text>
+                        )}
+                      </Form.Group>
+                    </Col>
 
-                  <div className="form-row">
-                    <div>
-                      <label style={labelStyle}>Status <span style={{ color: CORAL }}>*</span></label>
-                      <select className="issue-input" name="status" value={currentIssue.status} onChange={handleInputChange} required style={inputStyle}>
-                        <option value="">Select status</option>
-                        <option value="active">Active</option>
-                        <option value="inactive">Inactive</option>
-                      </select>
-                    </div>
-                    <div>
-                      <label style={labelStyle}>Description</label>
-                      <textarea className="issue-input" name="description" value={currentIssue.description}
-                        onChange={handleInputChange} rows={3} style={{ ...inputStyle, resize: "vertical" }} />
-                    </div>
-                  </div>
-                </div>
+                    <Col md={4}>
+                      <Form.Group className="mb-3">
+                        <Form.Label className="fw-semibold text-secondary" style={{ fontSize: "13px" }}>
+                          Branch Location <span className="text-danger">*</span>
+                        </Form.Label>
+                        <Form.Select
+                          name="branch_id"
+                          value={currentIssue.branch_id}
+                          onChange={handleInputChange}
+                          required
+                        >
+                          <option value="">Select Branch</option>
+                          {branches.map((b) => (
+                            <option key={b.id} value={b.id}>
+                              {b.name}
+                            </option>
+                          ))}
+                        </Form.Select>
+                      </Form.Group>
+                    </Col>
 
-                <div className="modal-footer">
-                  <button type="button" onClick={() => setShowModal(false)} style={{
-                    padding: "8px 20px", borderRadius: 8, border: "0.5px solid rgba(0,0,0,0.15)",
-                    background: "transparent", color: "#555", fontSize: 13, fontWeight: 500, cursor: "pointer",
-                  }}>Cancel</button>
-                  <button type="submit" disabled={isSubmitting} style={{
-                    padding: "8px 24px", borderRadius: 8, border: "none",
-                    background: PURPLE, color: "#fff", fontSize: 13, fontWeight: 500, cursor: "pointer",
-                    opacity: isSubmitting ? 0.7 : 1,
-                  }}>
-                    {isSubmitting ? "Saving…" : currentIssue.id ? "Update" : "Add Provision"}
-                  </button>
-                </div>
-              </form>
-            </div>
-          </div>
-        )}
+                    <Col md={4}>
+                      <Form.Group className="mb-3">
+                        <Form.Label className="fw-semibold text-secondary" style={{ fontSize: "13px" }}>
+                          Dispatch Date <span className="text-danger">*</span>
+                        </Form.Label>
+                        <Form.Control
+                          type="date"
+                          name="issue_date"
+                          value={currentIssue.issue_date}
+                          onChange={handleInputChange}
+                          required
+                        />
+                      </Form.Group>
+                    </Col>
+                  </Row>
 
-        <ToastContainer position="top-right" autoClose={3000} />
+                  <Row>
+                    <Col md={12}>
+                      <Form.Group className="mb-2">
+                        <Form.Label className="fw-semibold text-secondary" style={{ fontSize: "13px" }}>
+                          Reason / Description / Purpose
+                        </Form.Label>
+                        <Form.Control
+                          as="textarea"
+                          rows={2}
+                          placeholder="Project allocation, employee onboarding kit, general office supply..."
+                          name="description"
+                          value={currentIssue.description}
+                          onChange={handleInputChange}
+                        />
+                      </Form.Group>
+                    </Col>
+                  </Row>
+                </Container>
+              </Modal.Body>
+              <Modal.Footer style={{ backgroundColor: "#F8FAFC" }}>
+                <Button variant="secondary" size="sm" onClick={() => setShowModal(false)} style={{ borderRadius: "8px" }}>
+                  Cancel
+                </Button>
+                <Button
+                  type="submit"
+                  size="sm"
+                  disabled={isSubmitting}
+                  style={{
+                    backgroundColor: COLORS.primary,
+                    borderColor: COLORS.primary,
+                    borderRadius: "8px",
+                  }}
+                >
+                  {isSubmitting ? "Submitting..." : currentIssue.id ? "Update Provision" : "Confirm Dispatch"}
+                </Button>
+              </Modal.Footer>
+            </Form>
+          </Modal>
+
+          <ToastContainer position="top-right" autoClose={3000} />
+        </Container>
       </Main>
     </>
   );

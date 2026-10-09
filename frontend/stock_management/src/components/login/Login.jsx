@@ -36,14 +36,14 @@ const Login = () => {
   };
 
   const getLogin = async (email, password) => {
-
     try {
       const response = await stockManagementApis.getUserLogin(email, password);
-      
       return response;
     } catch (error) {
       setShow(true);
-      setErrors({ message: 'Failed to login. Please try again later.' });
+      const msg = error.message?.replace(/^Fetch error:\s*/i, '') || 'Failed to login. Please try again.';
+      setLoginMessage(msg);
+      setErrors({ message: msg });
       return null;
     }
   };
@@ -100,8 +100,8 @@ const Login = () => {
               <div className="text-center mb-4">
                 <Image
                   src="/images/ibirds_logo.png"
-                  alt="logo"
-                  style={{ width: "80px", borderRadius: "10%" }}
+                  alt="iBirds Services"
+                  style={{ width: "130px", height: "auto", objectFit: "contain" }}
                 />
               </div>
               

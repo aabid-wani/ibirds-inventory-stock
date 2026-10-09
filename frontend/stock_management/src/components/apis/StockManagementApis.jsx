@@ -65,6 +65,27 @@ const stockManagementApis = {
       method: 'PUT',
       body: JSON.stringify(user),
     }),
+  updateUserProfile: async (id, data) => {
+    const token = sessionStorage.getItem('token');
+    const isFormData = data instanceof FormData;
+    const headers = {
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      ...(isFormData ? {} : { 'Content-Type': 'application/json' }),
+    };
+    const response = await fetch(`${API_BASE_URL}/auth/update/${id}`, {
+      method: 'PUT',
+      headers,
+      body: isFormData ? data : JSON.stringify(data),
+    });
+    if (!response.ok) {
+      const errData = await response.json().catch(() => null);
+      throw new Error((errData && (errData.errors || errData.message)) || `Error: ${response.status}`);
+    }
+    return response.json();
+  },
+  putUser: async (id, data) => {
+    return stockManagementApis.updateUserProfile(id, data);
+  },
   deleteUserById: async (userId) =>
     fetchWithToken(`${API_BASE_URL}/auth/delete/${userId}`, { method: 'DELETE' }),
 
@@ -142,10 +163,23 @@ const stockManagementApis = {
     }),
   deleteProduct: async (productId) =>
     fetchWithToken(`${API_BASE_URL}/product/delete/${productId}`, { method: 'DELETE' }),
+  toggleProductStatus: async (productId) =>
+    fetchWithToken(`${API_BASE_URL}/product/toggle-status/${productId}`, { method: 'PUT' }),
+  adjustProductStock: async (productId, data) =>
+    fetchWithToken(`${API_BASE_URL}/product/adjust-stock/${productId}`, {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }),
+  getProductHistory: async (productId) =>
+    fetchWithToken(`${API_BASE_URL}/product/${productId}/history`),
 
   // Vendor APIs
   getVendor: async () => fetchWithToken(`${API_BASE_URL}/vendor`),
   getVendorById: async (id) => fetchWithToken(`${API_BASE_URL}/vendor/${id}`),
+  getVendorOrders: async (id, month = null) => {
+    const query = month && month !== 'all' ? `?month=${encodeURIComponent(month)}` : '';
+    return fetchWithToken(`${API_BASE_URL}/vendor/${id}/orders${query}`);
+  },
   addVendor: async (vendor) =>
     fetchWithToken(`${API_BASE_URL}/vendor/create`, {
       method: 'POST',
@@ -232,6 +266,11 @@ const stockManagementApis = {
       method: 'POST',
       body: JSON.stringify(permission),
     }),
+  batchSavePermissions: async (permissions) =>
+    fetchWithToken(`${API_BASE_URL}/permission/batch`, {
+      method: 'POST',
+      body: JSON.stringify({ permissions }),
+    }),
   deletePermissionById: async (Id) =>
     fetchWithToken(`${API_BASE_URL}/permission/delete/${Id}`, { method: 'DELETE' }),
 
@@ -269,6 +308,11 @@ const stockManagementApis = {
 
   // Employee APIs
   getEmployees: async () => fetchWithToken(`${API_BASE_URL}/employee`),
+  getEmployeeById: async (id) => fetchWithToken(`${API_BASE_URL}/employee/${id}`),
+  getEmployeeIssues: async (id, month = null) => {
+    const query = month && month !== 'all' ? `?month=${encodeURIComponent(month)}` : '';
+    return fetchWithToken(`${API_BASE_URL}/employee/${id}/issues${query}`);
+  },
   addEmployee: async (data) =>
     fetchWithToken(`${API_BASE_URL}/employee/create`, {
       method: 'POST',
@@ -280,6 +324,22 @@ const stockManagementApis = {
       body: JSON.stringify(data),
   }),
   deleteEmployee: async (id) => fetchWithToken(`${API_BASE_URL}/employee/delete/${id}`, { method: 'DELETE' }),
+
+  // Service Provider APIs
+  getServiceProviders: async () => fetchWithToken(`${API_BASE_URL}/service_provider`),
+  getServiceProviderById: async (id) => fetchWithToken(`${API_BASE_URL}/service_provider/${id}`),
+  addServiceProvider: async (data) =>
+    fetchWithToken(`${API_BASE_URL}/service_provider/create`, {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }),
+  updateServiceProvider: async (id, data) =>
+    fetchWithToken(`${API_BASE_URL}/service_provider/update/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    }),
+  deleteServiceProvider: async (id) =>
+    fetchWithToken(`${API_BASE_URL}/service_provider/delete/${id}`, { method: 'DELETE' }),
 
 
   // Reports
@@ -351,8 +411,95 @@ const stockManagementApis = {
     return fetchWithToken(url);
   },
 
-  getLowStockProducts: async () => fetchWithToken(`${API_BASE_URL}/product/lowStock`),
+  getLowStockProducts: async () => {
+    try {
+      const res = await fetchWithToken(`${API_BASE_URL}/product/lowStock`);
+      return Array.isArray(res) ? res : [];
+    } catch (err) {
+      console.warn("Could not load low stock products:", err?.message || err);
+      return [];
+    }
+  },
 
+  // ─── Activity & Session Tracking APIs ──────────────────────────────────────
+  logActivity: async (activity) => {
+    try {
+      return await fetchWithToken(`${API_BASE_URL}/activity/log`, {
+        method: 'POST',
+        body: JSON.stringify(activity),
+      });
+    } catch (err) {
+      console.warn("Activity log failed:", err?.message || err);
+      return null;
+    }
+  },
+
+  startSession: async () => {
+    try {
+      return await fetchWithToken(`${API_BASE_URL}/activity/session/start`, {
+        method: 'POST',
+        body: JSON.stringify({}),
+      });
+    } catch (err) {
+      console.warn("Session start failed:", err?.message || err);
+      return null;
+    }
+  },
+
+  heartbeatSession: async (sessionId) => {
+    try {
+      if (!sessionId) return null;
+      return await fetchWithToken(`${API_BASE_URL}/activity/session/heartbeat`, {
+        method: 'POST',
+        body: JSON.stringify({ session_id: sessionId }),
+      });
+    } catch (err) {
+      return null;
+    }
+  },
+
+  endSession: async (sessionId) => {
+    try {
+      if (!sessionId) return null;
+      return await fetchWithToken(`${API_BASE_URL}/activity/session/end`, {
+        method: 'POST',
+        body: JSON.stringify({ session_id: sessionId }),
+      });
+    } catch (err) {
+      return null;
+    }
+  },
+
+  getActivityAnalytics: async (days = 7, userId = 'all') => {
+    try {
+      const params = new URLSearchParams({ days, userId });
+      return await fetchWithToken(`${API_BASE_URL}/activity/analytics?${params}`);
+    } catch (err) {
+      console.warn("Failed to fetch activity analytics:", err);
+      return { trend: [], summary: {} };
+    }
+  },
+
+  getSessionAnalytics: async (days = 7, userId = 'all') => {
+    try {
+      const params = new URLSearchParams({ days, userId });
+      return await fetchWithToken(`${API_BASE_URL}/activity/sessions/analytics?${params}`);
+    } catch (err) {
+      console.warn("Failed to fetch session analytics:", err);
+      return { trend: [], summary: {} };
+    }
+  },
+
+  getActivityTimeline: async (limit = 30, userId = 'all', category = 'all') => {
+    try {
+      const params = new URLSearchParams({ limit, userId, category });
+      const res = await fetchWithToken(`${API_BASE_URL}/activity/timeline?${params}`);
+      return res?.activities || [];
+    } catch (err) {
+      console.warn("Failed to fetch activity timeline:", err);
+      return [];
+    }
+  },
 };
 
 export default stockManagementApis;

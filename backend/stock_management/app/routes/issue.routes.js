@@ -36,6 +36,18 @@ module.exports = function(app) {
             const issue = req.body;
             const result = await Issue.addIssue(issue, req.user?.id || req.user?.email);
             if(result){
+                const Activity = require('../models/activity.model.js');
+                Activity.logActivity({
+                    user_id: req.user?.id,
+                    user_name: req.user?.name || 'User',
+                    user_email: req.user?.email,
+                    role_name: req.user?.role_name,
+                    action_type: 'ISSUE',
+                    action_category: 'issuing',
+                    module: 'provisions',
+                    description: `Issued ${issue.quantity || 1} unit(s) of inventory stock`,
+                    entity_id: result[0]?.id || issue.id
+                });
                 res.status(201).json({result, success : true});
             }else{
                 res.status(400).json({errors : "Error adding issue"});
@@ -55,6 +67,17 @@ module.exports = function(app) {
 
         try {
             await Issue.insertBulkProvisions(provisions);
+            const Activity = require('../models/activity.model.js');
+            Activity.logActivity({
+                user_id: req.user?.id,
+                user_name: req.user?.name || 'User',
+                user_email: req.user?.email,
+                role_name: req.user?.role_name,
+                action_type: 'ISSUE',
+                action_category: 'issuing',
+                module: 'provisions',
+                description: `Created bulk inventory provisions (${provisions.length} items issued)`
+            });
             res.status(200).json({ message: "Bulk insert successful", success: true });
         } catch (error) {
             res.status(500).json({ error: "Failed to insert provisions" });
@@ -84,6 +107,18 @@ module.exports = function(app) {
             // console.log('update issue result',result);
             
             if (result) {
+                const Activity = require('../models/activity.model.js');
+                Activity.logActivity({
+                    user_id: req.user?.id,
+                    user_name: req.user?.name || 'User',
+                    user_email: req.user?.email,
+                    role_name: req.user?.role_name,
+                    action_type: 'UPDATE_ISSUE',
+                    action_category: 'issuing',
+                    module: 'provisions',
+                    description: `Updated issue #${issueId} details`,
+                    entity_id: issueId
+                });
                 res.status(200).json({ result, success: true });
             } else {
                 res.status(400).json({ errors: "Error updating issue ID" });
@@ -98,6 +133,18 @@ module.exports = function(app) {
             const issueId = req.params.id;
             const result = await Issue.removeIssue(issueId);
             if (result) {
+                const Activity = require('../models/activity.model.js');
+                Activity.logActivity({
+                    user_id: req.user?.id,
+                    user_name: req.user?.name || 'User',
+                    user_email: req.user?.email,
+                    role_name: req.user?.role_name,
+                    action_type: 'DELETE_ISSUE',
+                    action_category: 'issuing',
+                    module: 'provisions',
+                    description: `Deleted issue record #${issueId}`,
+                    entity_id: issueId
+                });
                 res.status(200).json({ result, success: true });
             } else {
                 res.status(400).json({ errors: "Error deleting issue ID" });

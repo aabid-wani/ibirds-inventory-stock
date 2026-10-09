@@ -60,6 +60,21 @@ module.exports = function (app) {
                 res.status(500).send({ message: 'Error saving line items' });
                 return;
             }
+
+            // Auto-log purchasing activity
+            const Activity = require('../models/activity.model.js');
+            Activity.logActivity({
+                user_id: req.user?.id,
+                user_name: req.user?.name || 'User',
+                user_email: req.user?.email,
+                role_name: req.user?.role_name,
+                action_type: 'PURCHASE',
+                action_category: 'purchasing',
+                module: 'orders',
+                description: `Created Purchase Order #${result[0].order_number || result[0].id}${result[0].total_amount ? ` (₹${Number(result[0].total_amount).toLocaleString('en-IN')})` : ''}`,
+                entity_id: result[0].id
+            });
+
             res.status(200).send({success:true,data:result[0]});
         } catch (error) {
             res.status(500).send({ message: 'Error saving order' });

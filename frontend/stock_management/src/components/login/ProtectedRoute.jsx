@@ -2,32 +2,24 @@ import React, { useContext } from 'react';
 import { Navigate } from 'react-router-dom';
 import { AuthContext } from '../context/AuthProvider';
 
-const ProtectedRoute = ({ element, permissionKey, can }) => {
-  const { permissions, loginData } = useContext(AuthContext);
+const ProtectedRoute = ({ element, permissionKey, can = 'view' }) => {
+  const { loginData, hasPermission } = useContext(AuthContext);
 
-  const hasEditPermission = permissions?.some(
-    result => result.module_name === permissionKey && result.edit
-  );
-  const hasDeletePermission = permissions?.some(
-    result => result.module_name === permissionKey && result.del
-  );
-  const hasReadPermission = permissions?.some(
-    result => result.module_name === permissionKey && result.view
-  );
-  const hasAddPermission = permissions?.some(
-    result => result.module_name === permissionKey && result.add
-  );
+  if (!loginData) {
+    return <Navigate to="/" replace />;
+  }
 
-  if (loginData.role_name === 'Admin' || loginData.role_name === 'Super Admin') {
+  if (!permissionKey) {
     return element;
   }
 
-  if (permissions && hasReadPermission && can === "read") return element;
-  if (permissions && hasAddPermission && can === "add") return element;
-  if (permissions && hasEditPermission && can === "edit") return element;
-  if (permissions && hasDeletePermission && can === "delete") return element;
+  const action = can === 'read' ? 'view' : can === 'delete' ? 'del' : can;
 
-  return <Navigate to="/404" />;
+  if (hasPermission(permissionKey, action)) {
+    return element;
+  }
+
+  return <Navigate to="/home" replace />;
 };
 
 export default ProtectedRoute;

@@ -29,6 +29,17 @@ module.exports = function(app) {
         }
     });
 
+    router.get('/:id/issues', fetchApi, async (req, res) => {
+        try {
+            const employeeId = req.params.id;
+            const { month } = req.query;
+            const issues = await Employee.getEmployeeIssues(employeeId, month);
+            res.status(200).json(issues || []);
+        } catch (error) {
+            res.status(500).json({ errors: "Error fetching employee issues" });
+        }
+    });
+
 
     router.post('/create', fetchApi,  async (req, res) => {
        
